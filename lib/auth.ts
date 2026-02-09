@@ -1,8 +1,16 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { organization } from "better-auth/plugins/organization";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import {
+  ac,
+  ownerRole,
+  adminRole,
+  memberRole,
+  viewerRole,
+} from "@/lib/permissions";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -39,7 +47,27 @@ export const auth = betterAuth({
     },
   },
 
-  plugins: [nextCookies()],
+  plugins: [
+    nextCookies(),
+    organization({
+      allowUserToCreateOrganization: true,
+      creatorRole: "owner",
+      invitationExpiresIn: 60 * 60 * 24 * 7, // 7 days
+      ac,
+      roles: {
+        owner: ownerRole,
+        admin: adminRole,
+        member: memberRole,
+        viewer: viewerRole,
+      },
+      async sendInvitationEmail(data) {
+        // Stub: log invitation for now, enable Resend later
+        console.log(
+          `[INVITATION] ${data.email} invited to org ${data.organization.name} as ${data.role} (id: ${data.id})`,
+        );
+      },
+    }),
+  ],
 });
 
 export type Session = typeof auth.$Infer.Session;
