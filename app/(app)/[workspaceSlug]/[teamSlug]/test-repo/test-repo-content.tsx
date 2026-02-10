@@ -9,6 +9,7 @@ import type { TreeNode } from "@/lib/tree-utils";
 import { TestRepoTree } from "./test-repo-tree";
 import { TestRepoDetail } from "./test-repo-detail";
 import { TestRepoEmpty } from "./test-repo-empty";
+import { TestRepoCreateCase } from "./test-repo-create-case";
 import { cn } from "@/lib/utils";
 
 interface Suite {
@@ -59,6 +60,7 @@ export function TestRepoContent({
   const treePanelWidth = useTestRepoStore((s) => s.treePanelWidth);
   const setTreePanelWidth = useTestRepoStore((s) => s.setTreePanelWidth);
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
+  const creatingTestCase = useTestRepoStore((s) => s.creatingTestCase);
   const ready = useTestRepoReady();
 
   const isResizing = useRef(false);
@@ -122,7 +124,15 @@ export function TestRepoContent({
 
       {/* Detail pane */}
       <div className="min-w-0 flex-1 overflow-y-auto">
-        {selectedNode && hasData ? (
+        {creatingTestCase ? (
+          <TestRepoCreateCase
+            projectId={projectId}
+            parentId={creatingTestCase.parentId}
+            parentType={creatingTestCase.parentType}
+            suites={suites}
+            sections={sections}
+          />
+        ) : selectedNode && hasData ? (
           <TestRepoDetail
             projectId={projectId}
             selectedNode={selectedNode}

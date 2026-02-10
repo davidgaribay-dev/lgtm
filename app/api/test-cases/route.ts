@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { title, projectId, sectionId } = body;
+  const { title, projectId, sectionId, description, preconditions, priority, type } = body;
 
   if (!title?.trim() || !projectId) {
     return NextResponse.json(
@@ -58,6 +58,10 @@ export async function POST(request: Request) {
       title: title.trim(),
       projectId,
       sectionId: sectionId || null,
+      description: description?.trim() || null,
+      preconditions: preconditions?.trim() || null,
+      priority: priority || "medium",
+      type: type || "functional",
       createdBy: session.user.id,
       updatedBy: session.user.id,
     })

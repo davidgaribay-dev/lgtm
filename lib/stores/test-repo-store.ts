@@ -9,11 +9,18 @@ export interface SelectedNode {
   type: TreeNodeType;
 }
 
+export interface CreatingTestCase {
+  parentId: string | null;
+  parentType: "suite" | "section" | "root";
+}
+
 interface TestRepoState {
   selectedNode: SelectedNode | null;
   selectNode: (node: SelectedNode | null) => void;
   treePanelWidth: number;
   setTreePanelWidth: (width: number) => void;
+  creatingTestCase: CreatingTestCase | null;
+  setCreatingTestCase: (val: CreatingTestCase | null) => void;
 }
 
 export const useTestRepoStore = create<TestRepoState>()(
@@ -23,6 +30,8 @@ export const useTestRepoStore = create<TestRepoState>()(
       selectNode: (node) => set({ selectedNode: node }),
       treePanelWidth: 280,
       setTreePanelWidth: (width) => set({ treePanelWidth: width }),
+      creatingTestCase: null,
+      setCreatingTestCase: (val) => set({ creatingTestCase: val }),
     }),
     {
       name: "test-repo",

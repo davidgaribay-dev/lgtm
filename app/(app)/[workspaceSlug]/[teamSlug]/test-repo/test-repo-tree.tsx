@@ -1,8 +1,19 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
-import { Tree, type NodeRendererProps, type NodeApi } from "react-arborist";
+import {
+  Tree,
+  type NodeRendererProps,
+  type NodeApi,
+  type TreeApi,
+} from "react-arborist";
 import {
   ChevronRight,
   Folder,
@@ -32,19 +43,77 @@ import {
 import { cn } from "@/lib/utils";
 import { TreeDialogs, type DialogState } from "./tree-dialogs";
 
+const CREATING_NODE_ID = "__creating__";
+
 interface TestRepoTreeProps {
   data: TreeNode[];
   projectId: string;
 }
 
+// ─── Helper: inject a temporary "creating" node into the tree ───
+
+function injectTempNode(
+  data: TreeNode[],
+  target: { parentId: string | null; parentType: string },
+): TreeNode[] {
+  const tempNode: TreeNode = {
+    id: CREATING_NODE_ID,
+    name: "",
+    type:
+      target.parentType === "root" && target.parentId === null
+        ? "suite"
+        : "section",
+  };
+
+  // Root-level creation
+  if (!target.parentId) {
+    return [tempNode, ...data];
+  }
+
+  // Nested creation: find parent and prepend to its children
+  function inject(nodes: TreeNode[]): TreeNode[] {
+    return nodes.map((n) => {
+      if (n.id === target.parentId) {
+        return {
+          ...n,
+          children: [tempNode, ...(n.children ?? [])],
+        };
+      }
+      if (n.children) {
+        return { ...n, children: inject(n.children) };
+      }
+      return n;
+    });
+  }
+
+  return inject(data);
+}
+
 export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
   const selectNode = useTestRepoStore((s) => s.selectNode);
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
+  const setCreatingTestCase = useTestRepoStore((s) => s.setCreatingTestCase);
   const router = useRouter();
 
+  const treeRef = useRef<TreeApi<TreeNode> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 280, height: 600 });
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
+
+  // Inline folder creation state
+  const [creatingFolder, setCreatingFolder] = useState<{
+    parentId: string | null;
+    parentType: "suite" | "section" | "root";
+  } | null>(null);
+
+  // Inline rename state
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+
+  // Derive tree data with temp node when creating
+  const treeData = useMemo(() => {
+    if (!creatingFolder) return data;
+    return injectTempNode(data, creatingFolder);
+  }, [data, creatingFolder]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -63,12 +132,22 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Auto-expand parent when creating inside it
+  useEffect(() => {
+    if (creatingFolder?.parentId && treeRef.current) {
+      const parentNode = treeRef.current.get(creatingFolder.parentId);
+      if (parentNode && !parentNode.isOpen) {
+        parentNode.open();
+      }
+    }
+  }, [creatingFolder]);
+
   const handleSelect = useCallback(
     (nodes: { id: string; data: TreeNode }[]) => {
       const node = nodes[0];
-      if (node) {
+      if (node && node.id !== CREATING_NODE_ID) {
         selectNode({ id: node.id, type: node.data.type });
-      } else {
+      } else if (!node) {
         selectNode(null);
       }
     },
@@ -88,19 +167,14 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       const dragNode = dragNodes[0];
       if (!dragNode) return true;
 
+      // Never drag the temp creating node
+      if (dragNode.id === CREATING_NODE_ID) return true;
+
       const dragType = dragNode.data.type;
       const parentType = parentNode.data?.type;
 
-      // Cannot drop INTO a testCase (leaves only)
       if (parentType === "testCase") return true;
-
-      // Suites must stay at root level
       if (dragType === "suite" && !parentNode.isRoot) return true;
-
-      // Non-suites cannot be dropped at root (must be inside a suite or section)
-      // Actually allow it — orphan sections/cases are valid in the schema
-
-      // Cannot drop a node into its own descendants
       if (!parentNode.isRoot && dragNode.isAncestorOf(parentNode)) return true;
 
       return false;
@@ -123,22 +197,19 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       index: number;
     }) => {
       const dragNode = dragNodes[0];
-      if (!dragNode) return;
+      if (!dragNode || dragNode.id === CREATING_NODE_ID) return;
 
       const dragType = dragNode.data.type;
 
-      // Collect siblings at the target parent (after the drop)
       const siblings = parentNode?.isRoot
         ? data
         : (parentNode?.children?.map((c) => c.data) ?? []);
 
-      // Build the new order: remove dragged item, insert at index
       const siblingIds = siblings
         .map((s) => s.id)
-        .filter((id) => id !== dragNode.id);
+        .filter((id) => id !== dragNode.id && id !== CREATING_NODE_ID);
       siblingIds.splice(index, 0, dragNode.id);
 
-      // Build reorder items
       const items: Array<{
         id: string;
         type: "suite" | "section" | "testCase";
@@ -149,17 +220,14 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       }> = [];
 
       if (dragType === "suite") {
-        // Reorder suites at root
         siblingIds.forEach((id, i) => {
           items.push({ id, type: "suite", displayOrder: i });
         });
       } else if (dragType === "section") {
-        // Determine new parent references
-        const parentType = parentNode?.data?.type;
-        const newSuiteId = parentType === "suite" ? parentId : null;
-        const newParentId = parentType === "section" ? parentId : null;
+        const pType = parentNode?.data?.type;
+        const newSuiteId = pType === "suite" ? parentId : null;
+        const newParentId = pType === "section" ? parentId : null;
 
-        // The moved section
         items.push({
           id: dragNode.id,
           type: "section",
@@ -168,22 +236,18 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
           parentId: newParentId,
         });
 
-        // Re-index all siblings
         siblingIds.forEach((id, i) => {
           if (id !== dragNode.id) {
             items.push({ id, type: "section", displayOrder: i });
           } else {
-            // Update the moved item's displayOrder to match position
             const existing = items.find((it) => it.id === dragNode.id);
             if (existing) existing.displayOrder = i;
           }
         });
       } else if (dragType === "testCase") {
-        // Determine new sectionId
-        const parentType = parentNode?.data?.type;
-        const newSectionId = parentType === "section" ? parentId : null;
+        const pType = parentNode?.data?.type;
+        const newSectionId = pType === "section" ? parentId : null;
 
-        // The moved test case
         items.push({
           id: dragNode.id,
           type: "testCase",
@@ -191,7 +255,6 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
           sectionId: newSectionId,
         });
 
-        // Re-index all siblings
         siblingIds.forEach((id, i) => {
           if (id !== dragNode.id) {
             items.push({ id, type: "testCase", displayOrder: i });
@@ -214,7 +277,7 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
     [data, projectId, router],
   );
 
-  // Clone handler (no dialog needed)
+  // Clone handler
   const handleClone = useCallback(
     async (nodeId: string) => {
       await fetch(`/api/test-cases/${nodeId}/clone`, {
@@ -223,6 +286,85 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
         body: JSON.stringify({ projectId }),
       });
       router.refresh();
+    },
+    [projectId, router],
+  );
+
+  // Inline folder creation submit
+  const handleCreateFolder = useCallback(
+    async (name: string) => {
+      if (!creatingFolder) return;
+      const trimmed = name.trim();
+      if (!trimmed) {
+        setCreatingFolder(null);
+        return;
+      }
+
+      try {
+        if (
+          creatingFolder.parentType === "root" &&
+          !creatingFolder.parentId
+        ) {
+          // Create a test suite
+          const res = await fetch("/api/test-suites", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: trimmed, projectId }),
+          });
+          if (!res.ok) throw new Error("Failed to create folder");
+        } else {
+          // Create a section
+          const body: Record<string, unknown> = {
+            name: trimmed,
+            projectId,
+          };
+          if (creatingFolder.parentType === "suite") {
+            body.suiteId = creatingFolder.parentId;
+          } else if (creatingFolder.parentType === "section") {
+            body.parentId = creatingFolder.parentId;
+          }
+          const res = await fetch("/api/sections", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error("Failed to create folder");
+        }
+        router.refresh();
+      } finally {
+        setCreatingFolder(null);
+      }
+    },
+    [creatingFolder, projectId, router],
+  );
+
+  // Inline rename submit
+  const handleRename = useCallback(
+    async (nodeId: string, nodeType: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        setEditingNodeId(null);
+        return;
+      }
+
+      const urlMap: Record<string, string> = {
+        suite: `/api/test-suites/${nodeId}`,
+        section: `/api/sections/${nodeId}`,
+        testCase: `/api/test-cases/${nodeId}`,
+      };
+      const bodyKey = nodeType === "testCase" ? "title" : "name";
+
+      try {
+        const res = await fetch(urlMap[nodeType], {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [bodyKey]: trimmed, projectId }),
+        });
+        if (!res.ok) throw new Error("Failed to rename");
+        router.refresh();
+      } finally {
+        setEditingNodeId(null);
+      }
     },
     [projectId, router],
   );
@@ -242,8 +384,7 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
                 size="icon"
                 className="h-6 w-6"
                 onClick={() =>
-                  setDialogState({
-                    type: "createFile",
+                  setCreatingTestCase({
                     parentId: null,
                     parentType: "root",
                   })
@@ -261,8 +402,7 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
                 size="icon"
                 className="h-6 w-6"
                 onClick={() =>
-                  setDialogState({
-                    type: "createFolder",
+                  setCreatingFolder({
                     parentId: null,
                     parentType: "root",
                   })
@@ -278,7 +418,7 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
 
       {/* Tree */}
       <div ref={containerRef} className="min-h-0 flex-1">
-        {data.length === 0 ? (
+        {treeData.length === 0 && !creatingFolder ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
             <p className="text-xs text-muted-foreground">
               No items yet. Use the toolbar above to get started.
@@ -286,7 +426,9 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
           </div>
         ) : (
           <Tree<TreeNode>
-            data={data}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ref={treeRef as any}
+            data={treeData}
             width={dimensions.width}
             height={dimensions.height}
             rowHeight={32}
@@ -304,13 +446,19 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
                 projectId={projectId}
                 setDialogState={setDialogState}
                 onClone={handleClone}
+                onCreateFolder={handleCreateFolder}
+                onRename={handleRename}
+                editingNodeId={editingNodeId}
+                setEditingNodeId={setEditingNodeId}
+                setCreatingFolder={setCreatingFolder}
+                setCreatingTestCase={setCreatingTestCase}
               />
             )}
           </Tree>
         )}
       </div>
 
-      {/* Dialogs */}
+      {/* Delete confirmation dialog */}
       <TreeDialogs
         dialogState={dialogState}
         setDialogState={setDialogState}
@@ -320,10 +468,28 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
   );
 }
 
+// ─── Tree Node Renderer ───
+
 interface TreeNodeRendererExtendedProps extends NodeRendererProps<TreeNode> {
   projectId: string;
   setDialogState: (state: DialogState | null) => void;
   onClone: (nodeId: string) => void;
+  onCreateFolder: (name: string) => void;
+  onRename: (nodeId: string, nodeType: string, newName: string) => void;
+  editingNodeId: string | null;
+  setEditingNodeId: (id: string | null) => void;
+  setCreatingFolder: (
+    val: {
+      parentId: string | null;
+      parentType: "suite" | "section" | "root";
+    } | null,
+  ) => void;
+  setCreatingTestCase: (
+    val: {
+      parentId: string | null;
+      parentType: "suite" | "section" | "root";
+    } | null,
+  ) => void;
 }
 
 function TreeNodeRenderer({
@@ -331,12 +497,93 @@ function TreeNodeRenderer({
   style,
   setDialogState,
   onClone,
+  onCreateFolder,
+  onRename,
+  editingNodeId,
+  setEditingNodeId,
+  setCreatingFolder,
+  setCreatingTestCase,
   dragHandle,
 }: TreeNodeRendererExtendedProps) {
   const isSelected = node.isSelected;
   const nodeType = node.data.type;
   const isFolder = nodeType === "suite" || nodeType === "section";
+  const isCreating = node.id === CREATING_NODE_ID;
+  const isEditing = node.id === editingNodeId;
 
+  // --- Inline creation input ---
+  if (isCreating) {
+    return (
+      <div style={style} className="flex h-8 items-center gap-1.5 px-2">
+        <span className="w-4 shrink-0" />
+        <Folder className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <InlineInput
+          defaultValue=""
+          placeholder="Folder name"
+          onSubmit={(val) => onCreateFolder(val)}
+          onCancel={() => onCreateFolder("")}
+        />
+      </div>
+    );
+  }
+
+  // --- Inline rename input ---
+  if (isEditing) {
+    return (
+      <div
+        ref={dragHandle}
+        style={style}
+        className={cn(
+          "group flex h-8 items-center gap-1.5 rounded-md px-2 text-sm",
+          isSelected
+            ? "bg-foreground text-background"
+            : "text-foreground hover:bg-muted",
+        )}
+      >
+        {node.isInternal ? (
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+            <ChevronRight
+              className={cn(
+                "h-3 w-3 transition-transform duration-150",
+                node.isOpen && "rotate-90",
+              )}
+            />
+          </span>
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+        {isFolder && (
+          <Folder
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              isSelected ? "text-background/70" : "text-muted-foreground",
+            )}
+          />
+        )}
+        {nodeType === "testCase" && (
+          <FileText
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              isSelected ? "text-background/70" : "text-muted-foreground",
+            )}
+          />
+        )}
+        <InlineInput
+          defaultValue={node.data.name}
+          onSubmit={(val) => {
+            if (val.trim() && val.trim() !== node.data.name) {
+              onRename(node.id, nodeType, val);
+            } else {
+              setEditingNodeId(null);
+            }
+          }}
+          onCancel={() => setEditingNodeId(null)}
+        />
+      </div>
+    );
+  }
+
+  // --- Normal node ---
   return (
     <div
       ref={dragHandle}
@@ -413,10 +660,9 @@ function TreeNodeRenderer({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    setDialogState({
-                      type: "createFolder",
+                    setCreatingFolder({
                       parentId: node.id,
-                      parentType: nodeType,
+                      parentType: nodeType as "suite" | "section",
                     });
                   }}
                 >
@@ -426,10 +672,9 @@ function TreeNodeRenderer({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    setDialogState({
-                      type: "createFile",
+                    setCreatingTestCase({
                       parentId: node.id,
-                      parentType: nodeType,
+                      parentType: nodeType as "suite" | "section",
                     });
                   }}
                 >
@@ -443,12 +688,7 @@ function TreeNodeRenderer({
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation();
-                setDialogState({
-                  type: "rename",
-                  id: node.id,
-                  nodeType,
-                  currentName: node.data.name,
-                });
+                setEditingNodeId(node.id);
               }}
             >
               <Pencil className="mr-2 h-4 w-4" />
@@ -480,7 +720,8 @@ function TreeNodeRenderer({
                   id: node.id,
                   nodeType,
                   name: node.data.name,
-                  hasChildren: node.isInternal && (node.children?.length ?? 0) > 0,
+                  hasChildren:
+                    node.isInternal && (node.children?.length ?? 0) > 0,
                 });
               }}
             >
@@ -491,5 +732,70 @@ function TreeNodeRenderer({
         </DropdownMenu>
       </div>
     </div>
+  );
+}
+
+// ─── Inline Input Component ───
+
+function InlineInput({
+  defaultValue,
+  placeholder,
+  onSubmit,
+  onCancel,
+}: {
+  defaultValue: string;
+  placeholder?: string;
+  onSubmit: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(defaultValue);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        if (defaultValue) {
+          inputRef.current.select();
+        }
+      }
+    });
+  }, [defaultValue]);
+
+  function handleSubmit() {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onSubmit(value);
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      className="min-w-0 flex-1 rounded border border-ring bg-background px-1.5 py-0.5 text-sm text-foreground outline-none"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSubmit();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      onBlur={() => {
+        if (!submittedRef.current) {
+          if (value.trim() && value.trim() !== defaultValue) {
+            handleSubmit();
+          } else {
+            onCancel();
+          }
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
   );
 }
