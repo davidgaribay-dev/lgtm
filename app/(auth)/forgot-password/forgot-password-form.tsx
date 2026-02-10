@@ -5,17 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthInput, AuthLabel } from "@/components/auth-ui";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -49,76 +39,81 @@ export function ForgotPasswordForm() {
 
   if (isSuccess) {
     return (
-      <Card>
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Mail className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <CardTitle>Check your email</CardTitle>
-          <CardDescription>
+      <div className="space-y-6 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <Mail className="h-5 w-5 text-muted-foreground" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Check your email</h2>
+          <p className="text-sm text-muted-foreground">
             If an account exists for <strong>{email}</strong>, we&apos;ve sent a
             password reset link.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="flex flex-col gap-4">
-          <Button variant="outline" className="w-full" asChild>
-            <Link href="/login">
-              <ArrowLeft className="h-4 w-4" />
-              Back to sign in
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
+          </p>
+        </div>
+        <Button variant="outline" className="h-11 w-full rounded-lg" asChild>
+          <Link href="/login">
+            <ArrowLeft className="h-4 w-4" />
+            Back to sign in
+          </Link>
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reset your password</CardTitle>
-        <CardDescription>
-          Enter your email address and we&apos;ll send you a link to reset your
-          password.
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError("");
-              }}
-              disabled={isPending}
-              required
-              autoComplete="email"
-              autoFocus
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isPending}>
+    <div className="space-y-6">
+      <div className="space-y-2 text-center">
+        <h2 className="text-lg font-semibold">Reset your password</h2>
+        <p className="text-sm text-muted-foreground">
+          Enter your email and we&apos;ll send you a reset link.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <p className="text-center text-sm text-destructive">{error}</p>
+        )}
+
+        <div className="space-y-2">
+          <AuthLabel htmlFor="email">Email</AuthLabel>
+          <AuthInput
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+            }}
+            disabled={isPending}
+            required
+            autoComplete="email"
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Button
+            type="submit"
+            className="h-11 w-full rounded-lg"
+            disabled={isPending}
+          >
             {isPending && <Loader2 className="animate-spin" />}
             {isPending ? "Sending link…" : "Send Reset Link"}
           </Button>
-          <Button variant="ghost" className="w-full" asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-11 w-full rounded-lg"
+            asChild
+          >
             <Link href="/login">
               <ArrowLeft className="h-4 w-4" />
               Back to sign in
             </Link>
           </Button>
-        </CardFooter>
+        </div>
       </form>
-    </Card>
+    </div>
   );
 }

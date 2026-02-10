@@ -16,13 +16,30 @@ npm run db:studio        # Browser UI for browsing/editing DB data
 
 ## Architecture
 
-Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, and shadcn/ui (new-york style). The app is a **test case management system** (similar to TestRail/Zephyr) with team-based RBAC.
+Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, and shadcn/ui (new-york style). The app is a **test case management system** (similar to TestRail/Zephyr) with team-based RBAC. No test framework is configured yet.
+
+### Route structure
+
+- `app/(auth)/` — public auth pages (login, signup, forgot-password, reset-password) with centered card layout
+- `app/(app)/` — protected pages (dashboard, future project/test screens) with `AppHeader`; layout checks session and redirects to `/login` if unauthenticated
+- `app/api/auth/[...all]/route.ts` — Better Auth catch-all
+- `app/api/upload/route.ts` — Vercel Blob upload endpoint
+
+**Server/Client split:** `page.tsx` files are server components that fetch data; interactive parts live in separate `"use client"` files (e.g. `login-form.tsx`, `dashboard-content.tsx`).
+
+**Middleware** (`middleware.ts`): redirects authenticated users away from auth pages → `/dashboard`, unauthenticated users away from protected pages → `/login`, and blocks signup when registration is closed.
+
+### Naming conventions
+
+- Component files: kebab-case (`app-header.tsx`, `login-form.tsx`)
+- DB columns: snake_case for app tables, camelCase for Better Auth-owned tables
+- Path alias: `@/*` resolves to project root (e.g. `@/db`, `@/lib/auth`)
 
 ### Data layer
 
 - **Database:** Neon serverless PostgreSQL, connected via `drizzle-orm/neon-http` (stateless HTTP per query)
 - **ORM:** Drizzle ORM — schema in `db/schema.ts`, reusable column helpers in `db/columns.ts`, client exported from `db/index.ts`
-- **Migrations:** Drizzle Kit reads `drizzle.config.ts`, outputs SQL to `drizzle/`
+- **Migrations:** Drizzle Kit reads `drizzle.config.ts`, outputs SQL to `drizzle/`. Workflow after editing `db/schema.ts`: run `npm run db:generate` then `npm run db:migrate` (or `npm run db:push` for quick prototyping)
 - **IDs:** All tables use text primary keys (UUID via `crypto.randomUUID()`)
 - **Soft delete:** All application tables have `deleted_at`/`deleted_by` columns; always filter with `WHERE deleted_at IS NULL`
 - **Audit fields:** All application tables spread `auditFields` from `db/columns.ts` (created_at, created_by, updated_at, updated_by, deleted_at, deleted_by). Junction/result tables use lighter `timestamps` (created_at, updated_at only)

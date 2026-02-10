@@ -6,17 +6,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthInput, AuthLabel, PasswordInput } from "@/components/auth-ui";
 
 export function LoginForm() {
   const router = useRouter();
@@ -48,80 +38,73 @@ export function LoginForm() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sign in to your account</CardTitle>
-        <CardDescription>
-          Enter your email and password to continue
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError("");
-              }}
-              disabled={isPending}
-              required
-              autoComplete="email"
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-sm text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-              >
-                Forgot password?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError("");
-              }}
-              disabled={isPending}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending && <Loader2 className="animate-spin" />}
-            {isPending ? "Signing in…" : "Sign In"}
-          </Button>
-          {process.env.NEXT_PUBLIC_REGISTRATION_OPEN !== "false" && (
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="text-foreground underline-offset-4 hover:underline"
-              >
-                Sign up
-              </Link>
-            </p>
-          )}
-        </CardFooter>
-      </form>
-    </Card>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <p className="text-center text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-2">
+        <AuthLabel htmlFor="email">Email</AuthLabel>
+        <AuthInput
+          id="email"
+          type="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError("");
+          }}
+          disabled={isPending}
+          required
+          autoComplete="email"
+          autoFocus
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <AuthLabel htmlFor="password">Password</AuthLabel>
+          <Link
+            href="/forgot-password"
+            className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            tabIndex={-1}
+          >
+            Forgot password?
+          </Link>
+        </div>
+        <PasswordInput
+          id="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setError("");
+          }}
+          disabled={isPending}
+          required
+          autoComplete="current-password"
+        />
+      </div>
+
+      <Button
+        type="submit"
+        className="h-11 w-full rounded-lg"
+        disabled={isPending}
+      >
+        {isPending && <Loader2 className="animate-spin" />}
+        {isPending ? "Signing in…" : "Sign In"}
+      </Button>
+
+      {process.env.NEXT_PUBLIC_REGISTRATION_OPEN !== "false" && (
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Create one
+          </Link>
+        </p>
+      )}
+    </form>
   );
 }
