@@ -20,18 +20,21 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 
 ### Route structure
 
-- `app/(auth)/` — public auth pages (login, signup, forgot-password, reset-password) with centered card layout
-- `app/(app)/` — protected pages (dashboard, future project/test screens) with `AppHeader`; layout checks session and redirects to `/login` if unauthenticated
+- `app/(auth)/` — public auth pages (login, signup, forgot-password, reset-password) and invitation acceptance (`invite/[id]`) with centered card layout
+- `app/(app)/` — protected pages (dashboard, settings, future project/test screens) with collapsible sidebar; layout checks session, redirects unauthenticated users, and guards against incomplete onboarding
+- `app/onboarding/` — onboarding flow for new users (workspace creation, team invitations); requires auth, redirects to dashboard when complete
 - `app/api/auth/[...all]/route.ts` — Better Auth catch-all
 - `app/api/upload/route.ts` — Vercel Blob upload endpoint
+- `app/api/check-slug/route.ts` — Organization slug uniqueness check
+- `app/api/onboarding/advance/route.ts` — Advances onboarding step and clears session cache
 
-**Server/Client split:** `page.tsx` files are server components that fetch data; interactive parts live in separate `"use client"` files (e.g. `login-form.tsx`, `dashboard-content.tsx`).
+**Server/Client split:** `page.tsx` files are server components that fetch data; interactive parts live in separate `"use client"` files (e.g. `login-form.tsx`, `dashboard-content.tsx`, `workspace-form.tsx`).
 
-**Middleware** (`middleware.ts`): redirects authenticated users away from auth pages → `/dashboard`, unauthenticated users away from protected pages → `/login`, and blocks signup when registration is closed.
+**Middleware** (`middleware.ts`): redirects authenticated users away from auth pages → `/dashboard`, unauthenticated users away from protected pages (`/dashboard`, `/settings`, `/onboarding`) → `/login`, and blocks signup when registration is closed.
 
 ### Naming conventions
 
-- Component files: kebab-case (`app-header.tsx`, `login-form.tsx`)
+- Component files: kebab-case (`app-sidebar.tsx`, `login-form.tsx`)
 - DB columns: snake_case for app tables, camelCase for Better Auth-owned tables
 - Path alias: `@/*` resolves to project root (e.g. `@/db`, `@/lib/auth`)
 
@@ -53,6 +56,7 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 - Client-side: `lib/auth-client.ts` exports `authClient` with `useSession`, `signIn`, `signUp`, etc.
 - Server-side session: `auth.api.getSession({ headers: await headers() })`
 - Session cookie caching enabled (5 min) to reduce DB round-trips over Neon HTTP
+- User additional fields: `description` (bio), `onboardingStep` (tracks onboarding progress)
 - Password reset via Resend is stubbed out in `lib/auth.ts` (commented), ready to enable
 - Required env vars: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`
 
@@ -62,13 +66,40 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 - Configured in `lib/auth.ts` (server) and `lib/auth-client.ts` (client) with matching AC config
 - Access control defined in `lib/permissions.ts` using `createAccessControl` from `better-auth/plugins/access`
 - Four roles: **owner** (full control), **admin** (all except org delete), **member** (create/edit test cases, execute runs), **viewer** (read-only)
-- Invitation system: 7-day expiry, `sendInvitationEmail` stubbed (enable Resend later)
+- Invitation system: 7-day expiry, emails sent via Resend (falls back to console.log if `RESEND_API_KEY` not set)
 - Organization plugin tables: `organization`, `member`, `invitation` + `activeOrganizationId` on `session`
 - Permission resources: `organization`, `member`, `invitation`, `project`, `testCase`, `testRun`, `testPlan`, `shareLink`
 
+### Onboarding
+
+Two distinct flows handle user registration:
+
+**Flow A — New user creating a workspace:**
+1. Signup (`/signup`) — name, email, password, optional profile photo; sets `onboardingStep: "workspace"`
+2. Create workspace (`/onboarding/workspace`) — workspace name, URL slug (auto-generated with real-time uniqueness check), optional logo
+3. Invite team (`/onboarding/invite`) — add invitees by email with role selection, or skip
+4. Complete → `onboardingStep` set to `null` → redirected to `/dashboard`
+
+**Flow B — Invited user joining a workspace:**
+1. Click invite link (`/invite/[id]`) — shows invitation details and org name
+2. Create account or sign in — signup form accepts `?invite=ID` to auto-accept after signup
+3. Auto-joined to workspace → redirected to `/dashboard` (no onboarding steps)
+
+**Onboarding tracking:** `user.onboardingStep` column — `null` = complete, `"workspace"` = needs workspace, `"invite"` = needs invites. The app layout guards against incomplete onboarding. The `/api/onboarding/advance` endpoint validates step transitions and clears the session cache cookie.
+
+### Settings
+
+Settings pages live under `app/(app)/settings/` with a Linear-style sidebar nav:
+
+- **Profile** (`/settings`) — name, photo, description
+- **Security** (`/settings/security`) — password change
+- **Members** (`/settings/members`) — team member management (invite, remove, change role, revoke invitations); only visible to org owners/admins; uses TanStack React Table with shadcn DataTable
+
+The sidebar forces expanded state on settings pages and conditionally shows the Members nav item based on the user's admin org membership.
+
 ### Schema
 
-Better Auth owns seven tables (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) with text IDs and camelCase column names.
+Better Auth owns seven tables (`user`, `session`, `account`, `verification`, `organization`, `member`, `invitation`) with text IDs and camelCase column names. The `user` table has additional fields: `description` and `onboardingStep`.
 
 Application tables use snake_case column names and are organized into three domains:
 
@@ -99,15 +130,20 @@ Application tables use snake_case column names and are organized into three doma
 - Upload route: `app/api/upload/route.ts` — authenticates via Better Auth session, restricts to image types (jpeg/png/webp/gif), 5MB max
 - Client uploads use `upload()` from `@vercel/blob/client` with `handleUploadUrl: "/api/upload"`
 - Pass `clientPayload: JSON.stringify({ context: "profile-image" })` to auto-update `user.image` on upload completion
+- Also used for workspace logos during onboarding (context: `"workspace-logo"`)
 - Required env var: `BLOB_READ_WRITE_TOKEN`
 
 ### UI
 
 - Tailwind CSS 4 via PostCSS, theme defined with OKLCH CSS variables in `app/globals.css`
 - shadcn/ui components in `components/ui/`, add new ones with `npx shadcn add <component>`
-- `lib/utils.ts` exports `cn()` (clsx + tailwind-merge) for className composition
+- `lib/utils.ts` exports `cn()` (clsx + tailwind-merge) and `generateSlug()` for URL slug generation
 - Dark mode support via `next-themes` and `.dark` class variant
 - Icons: `lucide-react`
+- Collapsible sidebar with Zustand-persisted state (`lib/stores/sidebar-store.ts`), hydration-safe via `useSidebarReady()` hook
+- Reusable `DataTable` component (`components/data-table.tsx`) wrapping TanStack React Table with shadcn Table primitives
+- Shared auth UI components (`components/auth-ui.tsx`): `AuthInput`, `AuthLabel`, `PasswordInput`
+- Onboarding step indicator (`components/onboarding-steps.tsx`)
 
 ### Registration control
 
@@ -125,4 +161,5 @@ All in `.env.local` (gitignored via `.env*` pattern):
 - `BETTER_AUTH_URL` — app base URL
 - `BLOB_READ_WRITE_TOKEN` — Vercel Blob access token
 - `NEXT_PUBLIC_REGISTRATION_OPEN` — set to `"false"` to disable public signup (default: open)
-- `RESEND_API_KEY`, `EMAIL_FROM` — for invitation and password reset emails (when enabled)
+- `RESEND_API_KEY` — Resend API key for invitation emails (optional; falls back to console.log)
+- `EMAIL_FROM` — sender address for emails (e.g. `"LGTM <noreply@yourdomain.com>"`)
