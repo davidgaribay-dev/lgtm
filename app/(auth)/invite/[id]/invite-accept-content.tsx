@@ -55,7 +55,7 @@ export function InviteAcceptContent({
           This invitation has already been accepted.
         </p>
         <Button asChild>
-          <Link href="/dashboard">Go to dashboard</Link>
+          <Link href="/workspace-redirect">Go to dashboard</Link>
         </Button>
       </div>
     );
@@ -78,7 +78,7 @@ export function InviteAcceptContent({
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/workspace-redirect");
   }
 
   if (isAuthenticated) {

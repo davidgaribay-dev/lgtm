@@ -1,11 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq, and, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { organization, member } from "@/db/schema";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarMainArea } from "@/components/sidebar-main-area";
 
 export default async function AppLayout({
   children,
@@ -17,8 +12,6 @@ export default async function AppLayout({
   });
 
   if (!session) {
-    // Redirect to route handler that clears the stale session cookie
-    // (cookies can't be modified in Server Components, only in Route Handlers)
     redirect("/api/auth/clear-session");
   }
 
@@ -33,31 +26,9 @@ export default async function AppLayout({
   if (onboardingStep === "invite") {
     redirect("/onboarding/invite");
   }
+  if (onboardingStep === "team") {
+    redirect("/onboarding/team");
+  }
 
-  const adminOrg = await db
-    .select({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-      role: member.role,
-    })
-    .from(member)
-    .innerJoin(organization, eq(member.organizationId, organization.id))
-    .where(
-      and(
-        eq(member.userId, session.user.id),
-        inArray(member.role, ["owner", "admin"]),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
-
-  return (
-    <div className="min-h-svh bg-muted dark:bg-background">
-      <AppSidebar user={session.user} adminOrg={adminOrg} />
-      <SidebarMainArea>
-        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
-      </SidebarMainArea>
-    </div>
-  );
+  return <>{children}</>;
 }

@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { organization, member } from "@/db/schema";
-import { InviteForm } from "./invite-form";
+import { organization, member, project } from "@/db/schema";
+import { TeamForm } from "./team-form";
 
 export const metadata: Metadata = {
-  title: "Invite Team — LGTM",
+  title: "Create Team — LGTM",
 };
 
-export default async function InvitePage() {
+export default async function TeamPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -23,9 +23,9 @@ export default async function InvitePage() {
 
   if (!step) redirect("/workspace-redirect");
   if (step === "workspace") redirect("/onboarding/workspace");
-  if (step === "team") redirect("/onboarding/team");
+  if (step === "invite") redirect("/onboarding/invite");
 
-  // Get the user's owned org (just created in the previous step)
+  // Get the user's owned org
   const userOrg = await db
     .select({
       id: organization.id,
@@ -42,8 +42,24 @@ export default async function InvitePage() {
     redirect("/onboarding/workspace");
   }
 
+  // Race condition recovery: if user already has a team in this org, complete onboarding
+  const existingTeam = await db
+    .select({ id: project.id })
+    .from(project)
+    .where(
+      and(
+        eq(project.organizationId, userOrg.id),
+        isNull(project.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (existingTeam.length > 0) {
+    redirect(`/${userOrg.slug}/dashboard`);
+  }
+
   return (
-    <InviteForm
+    <TeamForm
       orgId={userOrg.id}
       orgName={userOrg.name}
       orgSlug={userOrg.slug}

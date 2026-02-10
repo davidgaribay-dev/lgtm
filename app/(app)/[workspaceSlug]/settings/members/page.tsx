@@ -11,7 +11,12 @@ export const metadata: Metadata = {
   title: "Members — LGTM",
 };
 
-export default async function MembersPage() {
+export default async function MembersPage({
+  params,
+}: {
+  params: Promise<{ workspaceSlug: string }>;
+}) {
+  const { workspaceSlug } = await params;
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -20,7 +25,7 @@ export default async function MembersPage() {
     redirect("/login");
   }
 
-  // Find user's admin/owner org
+  // Look up the org by workspace slug and verify admin/owner role
   const adminOrg = await db
     .select({
       id: organization.id,
@@ -32,6 +37,7 @@ export default async function MembersPage() {
     .innerJoin(organization, eq(member.organizationId, organization.id))
     .where(
       and(
+        eq(organization.slug, workspaceSlug),
         eq(member.userId, session.user.id),
         inArray(member.role, ["owner", "admin"]),
       ),
@@ -40,7 +46,7 @@ export default async function MembersPage() {
     .then((rows) => rows[0] ?? null);
 
   if (!adminOrg) {
-    redirect("/settings");
+    redirect(`/${workspaceSlug}/settings`);
   }
 
   // Fetch all members with user details

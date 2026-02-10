@@ -6,6 +6,8 @@ interface SidebarState {
   expanded: boolean;
   toggle: () => void;
   setExpanded: (expanded: boolean) => void;
+  expandedTeams: Record<string, boolean>;
+  toggleTeam: (teamId: string) => void;
 }
 
 export const useSidebarStore = create<SidebarState>()(
@@ -14,6 +16,14 @@ export const useSidebarStore = create<SidebarState>()(
       expanded: true,
       toggle: () => set((state) => ({ expanded: !state.expanded })),
       setExpanded: (expanded) => set({ expanded }),
+      expandedTeams: {},
+      toggleTeam: (teamId) =>
+        set((state) => ({
+          expandedTeams: {
+            ...state.expandedTeams,
+            [teamId]: !state.expandedTeams[teamId],
+          },
+        })),
     }),
     {
       name: "sidebar",

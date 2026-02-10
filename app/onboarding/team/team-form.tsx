@@ -2,27 +2,26 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Check, Loader2, X } from "lucide-react";
-import { upload } from "@vercel/blob/client";
-import { authClient } from "@/lib/auth-client";
+import { Check, Loader2, X } from "lucide-react";
 import { generateSlug } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+interface TeamFormProps {
+  orgId: string;
+  orgName: string;
+  orgSlug: string;
+}
 
-export function WorkspaceForm() {
+export function TeamForm({ orgId, orgName, orgSlug }: TeamFormProps) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [isManualSlug, setIsManualSlug] = useState(false);
-  const [logoUrl, setLogoUrl] = useState("");
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Slug validation
   const [slugStatus, setSlugStatus] = useState<
@@ -58,7 +57,7 @@ export function WorkspaceForm() {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/check-slug?slug=${encodeURIComponent(s)}`,
+          `/api/check-team-slug?slug=${encodeURIComponent(s)}&orgId=${encodeURIComponent(orgId)}`,
         );
         const data = await res.json();
         setSlugStatus(data.available ? "available" : "taken");
@@ -68,31 +67,12 @@ export function WorkspaceForm() {
     }, 400);
   }
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
-    setError("");
-    try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ context: "workspace-logo" }),
-      });
-      setLogoUrl(blob.url);
-    } catch {
-      setError("Failed to upload logo. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
 
     if (!name.trim()) {
-      setError("Workspace name is required.");
+      setError("Team name is required.");
       return;
     }
     if (!slug.trim() || slug.length < 2) {
@@ -106,25 +86,29 @@ export function WorkspaceForm() {
 
     setIsPending(true);
 
-    const { error: orgError } = await authClient.organization.create({
-      name: name.trim(),
-      slug: slug.trim(),
-      logo: logoUrl || undefined,
+    // Create the team
+    const teamRes = await fetch("/api/teams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        slug: slug.trim(),
+        organizationId: orgId,
+      }),
     });
 
-    if (orgError) {
-      setError(
-        orgError.message ?? "Failed to create workspace. Please try again.",
-      );
+    if (!teamRes.ok) {
+      const data = await teamRes.json().catch(() => null);
+      setError(data?.message ?? "Failed to create team. Please try again.");
       setIsPending(false);
       return;
     }
 
-    // Advance onboarding step
+    // Advance onboarding to complete
     const res = await fetch("/api/onboarding/advance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step: "invite" }),
+      body: JSON.stringify({ step: null }),
     });
 
     if (!res.ok) {
@@ -133,23 +117,15 @@ export function WorkspaceForm() {
       return;
     }
 
-    router.push("/onboarding/invite");
+    router.push(`/${orgSlug}/dashboard`);
   }
-
-  const initials = name
-    .split(" ")
-    .map((n) => n[0])
-    .filter(Boolean)
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold">Create your workspace</h2>
+        <h2 className="text-lg font-semibold">Create your first team</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Set up your team&apos;s workspace to get started.
+          Teams organize test cases and runs in {orgName}.
         </p>
       </div>
 
@@ -158,47 +134,13 @@ export function WorkspaceForm() {
           <p className="text-center text-sm text-destructive">{error}</p>
         )}
 
-        {/* Logo */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="relative">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={logoUrl || undefined} alt="Workspace logo" />
-              <AvatarFallback className="text-lg">
-                {initials || "W"}
-              </AvatarFallback>
-            </Avatar>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border bg-background text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {isUploading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Camera className="h-3.5 w-3.5" />
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Workspace logo (optional)
-          </p>
-        </div>
-
         {/* Name */}
         <div className="space-y-2">
-          <Label htmlFor="workspace-name">Workspace name</Label>
+          <Label htmlFor="team-name">Team name</Label>
           <Input
-            id="workspace-name"
+            id="team-name"
             type="text"
-            placeholder="Acme Inc."
+            placeholder="Backend"
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
             disabled={isPending}
@@ -209,12 +151,12 @@ export function WorkspaceForm() {
 
         {/* Slug */}
         <div className="space-y-2">
-          <Label htmlFor="workspace-slug">URL slug</Label>
+          <Label htmlFor="team-slug">URL slug</Label>
           <div className="relative">
             <Input
-              id="workspace-slug"
+              id="team-slug"
               type="text"
-              placeholder="acme-inc"
+              placeholder="backend"
               value={slug}
               onChange={(e) => handleSlugChange(e.target.value)}
               disabled={isPending}
@@ -253,10 +195,12 @@ export function WorkspaceForm() {
         <Button
           type="submit"
           className="h-11 w-full rounded-lg"
-          disabled={isPending || slugStatus === "taken" || slugStatus === "checking"}
+          disabled={
+            isPending || slugStatus === "taken" || slugStatus === "checking"
+          }
         >
           {isPending && <Loader2 className="animate-spin" />}
-          {isPending ? "Creating workspace…" : "Continue"}
+          {isPending ? "Creating team…" : "Continue"}
         </Button>
       </form>
     </div>

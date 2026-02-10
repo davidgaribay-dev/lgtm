@@ -11,7 +11,9 @@ export function SidebarMainArea({ children }: { children: React.ReactNode }) {
   const ready = useSidebarReady();
   const [enableTransition, setEnableTransition] = useState(false);
 
-  const isSettings = pathname.startsWith("/settings");
+  // Settings pages are at /{workspaceSlug}/settings
+  const segments = pathname.split("/").filter(Boolean);
+  const isSettings = segments.length >= 2 && segments[1] === "settings";
   const isExpanded = isSettings ? true : expanded;
 
   useEffect(() => {

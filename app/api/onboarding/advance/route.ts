@@ -22,14 +22,20 @@ export async function POST(request: Request) {
     | string
     | null;
 
-  // Validate transitions: "workspace" → "invite", "invite" → null
+  // Validate transitions: "workspace" → "invite" → "team" → null
   if (currentStep === "workspace" && step !== "invite") {
     return NextResponse.json(
       { error: "Invalid step transition" },
       { status: 400 },
     );
   }
-  if (currentStep === "invite" && step !== null) {
+  if (currentStep === "invite" && step !== "team") {
+    return NextResponse.json(
+      { error: "Invalid step transition" },
+      { status: 400 },
+    );
+  }
+  if (currentStep === "team" && step !== null) {
     return NextResponse.json(
       { error: "Invalid step transition" },
       { status: 400 },

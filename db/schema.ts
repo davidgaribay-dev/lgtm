@@ -119,14 +119,21 @@ export const project = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
+    slug: text("slug").notNull(),
     description: text("description"),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("active"),
+    displayOrder: integer("display_order").notNull().default(0),
     ...auditFields,
   },
-  (table) => [index("project_organization_id_idx").on(table.organizationId)],
+  (table) => [
+    index("project_organization_id_idx").on(table.organizationId),
+    uniqueIndex("project_org_slug_active_unique")
+      .on(table.organizationId, table.slug)
+      .where(sql`${table.deletedAt} is null`),
+  ],
 );
 
 // ============================================================

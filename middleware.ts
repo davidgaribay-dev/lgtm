@@ -6,7 +6,16 @@ const registrationOpen =
   process.env.NEXT_PUBLIC_REGISTRATION_OPEN !== "false";
 
 const authRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"];
-const protectedRoutes = ["/dashboard", "/settings", "/onboarding"];
+
+const publicPrefixes = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/invite/",
+  "/api/",
+  "/_next/",
+];
 
 export function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
@@ -25,17 +34,36 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Authenticated users on auth pages → workspace redirect
   if (
     sessionCookie &&
     authRoutes.some((route) => pathname.startsWith(route))
   ) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(
+      new URL("/workspace-redirect", request.url),
+    );
   }
 
-  if (
-    !sessionCookie &&
-    protectedRoutes.some((route) => pathname.startsWith(route))
-  ) {
+  // Legacy /dashboard redirect
+  if (pathname === "/dashboard" && sessionCookie) {
+    return NextResponse.redirect(
+      new URL("/workspace-redirect", request.url),
+    );
+  }
+
+  // Protect onboarding
+  if (!sessionCookie && pathname.startsWith("/onboarding")) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Protect workspace routes: anything that isn't public
+  const isPublic =
+    pathname === "/" ||
+    publicPrefixes.some((p) => pathname.startsWith(p));
+
+  if (!sessionCookie && !isPublic) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
@@ -46,13 +74,13 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/login",
-    "/signup",
-    "/forgot-password",
-    "/reset-password",
-    "/dashboard/:path*",
-    "/settings/:path*",
-    "/onboarding/:path*",
-    "/api/auth/sign-up/email",
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico
+     * - image files
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

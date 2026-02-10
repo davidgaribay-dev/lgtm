@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { OnboardingSteps } from "@/components/onboarding-steps";
+
 
 interface Invitee {
   id: string;
@@ -25,11 +25,12 @@ interface Invitee {
 interface InviteFormProps {
   orgId: string;
   orgName: string;
+  orgSlug: string;
 }
 
 const roles = ["admin", "member", "viewer"] as const;
 
-export function InviteForm({ orgId, orgName }: InviteFormProps) {
+export function InviteForm({ orgId, orgName, orgSlug }: InviteFormProps) {
   const router = useRouter();
   const [invitees, setInvitees] = useState<Invitee[]>([
     { id: crypto.randomUUID(), email: "", role: "member" },
@@ -59,11 +60,11 @@ export function InviteForm({ orgId, orgName }: InviteFormProps) {
     setError("");
   }
 
-  async function finishOnboarding() {
+  async function advanceToTeam() {
     const res = await fetch("/api/onboarding/advance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step: null }),
+      body: JSON.stringify({ step: "team" }),
     });
 
     if (!res.ok) {
@@ -72,7 +73,7 @@ export function InviteForm({ orgId, orgName }: InviteFormProps) {
       return;
     }
 
-    router.push("/dashboard");
+    router.push("/onboarding/team");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -83,7 +84,7 @@ export function InviteForm({ orgId, orgName }: InviteFormProps) {
 
     if (valid.length === 0) {
       setIsPending(true);
-      await finishOnboarding();
+      await advanceToTeam();
       return;
     }
 
@@ -111,18 +112,16 @@ export function InviteForm({ orgId, orgName }: InviteFormProps) {
       return;
     }
 
-    await finishOnboarding();
+    await advanceToTeam();
   }
 
   async function handleSkip() {
     setIsPending(true);
-    await finishOnboarding();
+    await advanceToTeam();
   }
 
   return (
     <div className="space-y-6">
-      <OnboardingSteps currentStep="invite" />
-
       <div className="text-center">
         <h2 className="text-lg font-semibold">Invite your team</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -221,7 +220,7 @@ export function InviteForm({ orgId, orgName }: InviteFormProps) {
             ) : (
               <ArrowRight className="h-4 w-4" />
             )}
-            {isPending ? "Finishing…" : "Send & continue"}
+            {isPending ? "Continuing…" : "Send & continue"}
           </Button>
         </div>
       </form>

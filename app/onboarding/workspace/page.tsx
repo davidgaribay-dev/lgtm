@@ -21,8 +21,9 @@ export default async function WorkspacePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const step = (session.user as any).onboardingStep as string | null;
 
-  if (!step) redirect("/dashboard");
+  if (!step) redirect("/workspace-redirect");
   if (step === "invite") redirect("/onboarding/invite");
+  if (step === "team") redirect("/onboarding/team");
 
   // Race condition recovery: if user already has an org, advance to invite
   const existingOrg = await db

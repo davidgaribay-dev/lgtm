@@ -88,7 +88,7 @@ export function SignupForm() {
         // If acceptance fails, still redirect — they can accept later
         console.error("Failed to auto-accept invitation");
       }
-      router.push("/dashboard");
+      router.push("/workspace-redirect");
     } else {
       // Flow A: go to onboarding
       router.push("/onboarding/workspace");
