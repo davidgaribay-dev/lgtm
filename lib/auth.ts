@@ -18,6 +18,16 @@ export const auth = betterAuth({
     schema,
   }),
 
+  user: {
+    additionalFields: {
+      description: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
     // Uncomment when Resend is configured to enable password reset:
