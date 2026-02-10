@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { generateSlug } from "@/lib/utils";
+import { generateTeamKey, validateTeamKey } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useWorkspace } from "@/lib/workspace-context";
 
-const RESERVED_SLUGS = ["dashboard", "teams", "settings"];
+const RESERVED_TEAM_KEYS = [
+  "TEST",
+  "TEMP",
+  "ADMIN",
+  "ROOT",
+  "API",
+  "APP",
+  "WEB",
+  "DASHBOARD",
+  "TEAMS",
+  "SETTINGS",
+];
 
 interface CreateTeamDialogProps {
   open: boolean;
@@ -30,50 +42,63 @@ export function CreateTeamDialog({
   organizationId,
   onCreated,
 }: CreateTeamDialogProps) {
+  const { teams } = useWorkspace();
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
+  const [key, setKey] = useState("");
   const [description, setDescription] = useState("");
-  const [isManualSlug, setIsManualSlug] = useState(false);
+  const [keyManuallyEdited, setKeyManuallyEdited] = useState(false);
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [slugStatus, setSlugStatus] = useState<
-    "idle" | "checking" | "available" | "taken" | "reserved"
+  const [keyStatus, setKeyStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "reserved" | "invalid"
   >("idle");
 
-  function handleNameChange(value: string) {
-    setName(value);
-    setError("");
-    if (!isManualSlug) {
-      const generated = generateSlug(value);
-      setSlug(generated);
-      if (generated) {
-        checkSlug(generated);
-      } else {
-        setSlugStatus("idle");
+  // Auto-generate key from name (unless manually edited)
+  useEffect(() => {
+    if (!keyManuallyEdited && name) {
+      const existingKeys = teams.map((t) => t.key);
+      try {
+        const generated = generateTeamKey(name, existingKeys);
+        setKey(generated);
+        checkKey(generated);
+      } catch {
+        // If generation fails (unlikely), leave empty
+        setKey("");
+        setKeyStatus("idle");
       }
     }
-  }
+  }, [name, keyManuallyEdited, teams]);
 
-  async function checkSlug(s: string) {
-    if (s.length < 2) {
-      setSlugStatus("idle");
+  async function checkKey(k: string) {
+    if (k.length < 2) {
+      setKeyStatus("idle");
       return;
     }
 
-    if (RESERVED_SLUGS.includes(s)) {
-      setSlugStatus("reserved");
+    const upperKey = k.toUpperCase();
+
+    // Validate format
+    const validation = validateTeamKey(upperKey);
+    if (!validation.valid) {
+      setKeyStatus("invalid");
       return;
     }
 
-    setSlugStatus("checking");
+    // Check if reserved
+    if (RESERVED_TEAM_KEYS.includes(upperKey)) {
+      setKeyStatus("reserved");
+      return;
+    }
+
+    setKeyStatus("checking");
     try {
       const res = await fetch(
-        `/api/check-team-slug?slug=${encodeURIComponent(s)}&orgId=${encodeURIComponent(organizationId)}`,
+        `/api/check-team-key?key=${encodeURIComponent(upperKey)}&orgId=${encodeURIComponent(organizationId)}`,
       );
       const data = await res.json();
-      setSlugStatus(data.available ? "available" : "taken");
+      setKeyStatus(data.available ? "available" : "taken");
     } catch {
-      setSlugStatus("idle");
+      setKeyStatus("idle");
     }
   }
 
@@ -85,12 +110,22 @@ export function CreateTeamDialog({
       setError("Name is required");
       return;
     }
-    if (!slug.trim()) {
-      setError("Slug is required");
+    if (!key.trim()) {
+      setError("Key is required");
       return;
     }
-    if (RESERVED_SLUGS.includes(slug.trim())) {
-      setError("This slug is reserved");
+
+    const upperKey = key.trim().toUpperCase();
+
+    // Validate key
+    const validation = validateTeamKey(upperKey);
+    if (!validation.valid) {
+      setError(validation.error || "Invalid key");
+      return;
+    }
+
+    if (RESERVED_TEAM_KEYS.includes(upperKey)) {
+      setError("This key is reserved");
       return;
     }
 
@@ -102,7 +137,7 @@ export function CreateTeamDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          slug: slug.trim(),
+          key: upperKey,
           description: description.trim() || null,
           organizationId,
         }),
@@ -117,10 +152,10 @@ export function CreateTeamDialog({
 
       setIsPending(false);
       setName("");
-      setSlug("");
+      setKey("");
       setDescription("");
-      setIsManualSlug(false);
-      setSlugStatus("idle");
+      setKeyManuallyEdited(false);
+      setKeyStatus("idle");
       onCreated();
     } catch {
       setError("Failed to create team");
@@ -143,42 +178,52 @@ export function CreateTeamDialog({
             <Label htmlFor="team-name">Team name</Label>
             <Input
               id="team-name"
-              placeholder="Mobile App"
+              placeholder="Engineering Team"
               value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               disabled={isPending}
               required
               autoFocus
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="team-slug">Slug</Label>
+            <Label htmlFor="team-key">
+              Team key <span className="text-destructive">*</span>
+            </Label>
             <Input
-              id="team-slug"
-              placeholder="mobile-app"
-              value={slug}
+              id="team-key"
+              placeholder="ENG"
+              value={key}
               onChange={(e) => {
-                const val = e.target.value;
-                setSlug(val);
-                setIsManualSlug(true);
+                const val = e.target.value.toUpperCase();
+                setKey(val);
+                setKeyManuallyEdited(true);
                 setError("");
-                checkSlug(val);
+                checkKey(val);
               }}
               disabled={isPending}
+              maxLength={10}
+              className="uppercase font-mono"
               required
             />
-            {slugStatus === "checking" && (
+            <p className="text-xs text-muted-foreground">
+              2-10 uppercase letters. Cannot be changed after creation.
+            </p>
+            {keyStatus === "checking" && (
               <p className="text-xs text-muted-foreground">Checking...</p>
             )}
-            {slugStatus === "available" && (
+            {keyStatus === "available" && (
               <p className="text-xs text-emerald-600">Available</p>
             )}
-            {slugStatus === "taken" && (
+            {keyStatus === "taken" && (
               <p className="text-xs text-destructive">Already taken</p>
             )}
-            {slugStatus === "reserved" && (
+            {keyStatus === "reserved" && (
+              <p className="text-xs text-destructive">This key is reserved</p>
+            )}
+            {keyStatus === "invalid" && (
               <p className="text-xs text-destructive">
-                This slug is reserved
+                Key must be 2-10 uppercase letters
               </p>
             )}
           </div>
@@ -204,7 +249,10 @@ export function CreateTeamDialog({
             <Button
               type="submit"
               disabled={
-                isPending || slugStatus === "taken" || slugStatus === "reserved"
+                isPending ||
+                keyStatus === "taken" ||
+                keyStatus === "reserved" ||
+                keyStatus === "invalid"
               }
             >
               {isPending && <Loader2 className="animate-spin" />}

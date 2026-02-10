@@ -9,8 +9,10 @@ A test case management system built with Next.js, designed for teams to organize
 - **Test execution** — Plan test runs, record results (pass/fail/blocked/skip), track per-step outcomes
 - **Team collaboration** — Organizations with role-based access (owner, admin, member, viewer)
 - **Invitations** — Invite team members by email with role assignment
+- **API tokens** — Fine-grained access tokens with resource-level permissions for programmatic access
 - **Share links** — Grant read-only access to external guests without requiring an account
 - **File attachments** — Upload images and files to test cases and results via Vercel Blob
+- **Structured logging** — Production-grade logging with Pino, client-to-server log aggregation, and sensitive data redaction
 
 ## Tech Stack
 
@@ -18,6 +20,7 @@ A test case management system built with Next.js, designed for teams to organize
 - **Database:** Neon serverless PostgreSQL via Drizzle ORM
 - **Auth:** Better Auth (email/password + organization plugin for RBAC)
 - **Storage:** Vercel Blob for file uploads
+- **Logging:** Pino logger with correlation IDs and automatic sensitive data redaction
 - **Styling:** Tailwind CSS 4, shadcn/ui, Lucide icons
 
 ## Getting Started
@@ -50,6 +53,12 @@ Required variables:
 
 Optional variables:
 - `NEXT_PUBLIC_REGISTRATION_OPEN` — Set to `"false"` to disable public signup (only invited users can join)
+- `RESEND_API_KEY` — Resend API key for invitation emails (falls back to console.log if not set)
+- `EMAIL_FROM` — Sender address for emails (e.g., `"LGTM <noreply@yourdomain.com>"`)
+- `LOG_LEVEL` — Logging level: `debug` | `info` | `warn` | `error` (default: `debug` in dev, `info` in prod)
+- `LOG_TO_FILE` — Set to `"true"` for file-based logging on VPS (default: `false`, logs to stdout)
+- `LOG_FILE_PATH` — Path to log file (default: `./logs/app.log`)
+- `LOG_MAX_FILES` — Days of log retention (default: `30`)
 
 3. Push the schema to your database:
 
@@ -76,3 +85,55 @@ Open [http://localhost:3000](http://localhost:3000) to get started.
 | `npm run db:migrate` | Apply pending migrations |
 | `npm run db:push` | Push schema directly to DB (prototyping) |
 | `npm run db:studio` | Open Drizzle Studio (DB browser) |
+
+## Logging
+
+LGTM uses [Pino](https://getpino.io) for production-grade structured logging with automatic sensitive data redaction.
+
+### Features
+
+- **Server-side logging** — Structured JSON logs with correlation IDs for distributed tracing
+- **Client-side logging** — Browser logs automatically batched and sent to server
+- **Sensitive data protection** — Passwords, tokens, emails, and PII automatically redacted
+- **Error boundaries** — React errors automatically captured and logged
+- **Environment-aware** — Pretty-printed in development, structured JSON in production
+
+### Server-Side Usage
+
+```typescript
+import { logger, logInfo, logError } from '@/lib/logger';
+
+// Simple logging
+logInfo('User action completed', { userId: '123', action: 'create_team' });
+logError('Database operation failed', error, { query: 'INSERT...' });
+
+// API route with correlation ID
+const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+const apiLogger = logger.child({ correlationId });
+apiLogger.info({ userId: session.user.id }, 'Processing request');
+```
+
+### Client-Side Usage
+
+```typescript
+import { logClientInfo, logClientError } from '@/lib/client-logger';
+
+logClientInfo('User interaction', { feature: 'test-case-export' });
+logClientError('API call failed', error, { endpoint: '/api/teams' });
+```
+
+### Viewing Logs
+
+- **Development:** Pretty-printed to console with colors
+- **Production (Vercel):** `vercel logs <project>` or Vercel dashboard
+- **Production (VPS):** `tail -f /var/log/lgtm/app.log` (if `LOG_TO_FILE=true`)
+
+### Log Levels
+
+Set via `LOG_LEVEL` environment variable:
+- `debug` — Detailed debugging information (default in development)
+- `info` — General informational messages (default in production)
+- `warn` — Warning messages for potentially harmful situations
+- `error` — Error events that might still allow the application to continue
+
+For more details, see [CLAUDE.md](./CLAUDE.md#logging).

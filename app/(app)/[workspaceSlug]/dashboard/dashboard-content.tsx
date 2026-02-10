@@ -75,7 +75,7 @@ export function DashboardContent() {
               {teams.map((team) => (
                 <li key={team.id}>
                   <Link
-                    href={`/${workspace.slug}/${team.slug}/test-repo`}
+                    href={`/${workspace.slug}/${team.key}/test-repo`}
                     className="flex items-center justify-between rounded-md border p-3 transition-colors hover:bg-muted"
                   >
                     <div className="flex items-center gap-3">
@@ -84,8 +84,8 @@ export function DashboardContent() {
                       </div>
                       <div>
                         <p className="text-sm font-medium">{team.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {team.slug}
+                        <p className="text-xs font-mono text-muted-foreground">
+                          {team.key}
                         </p>
                       </div>
                     </div>

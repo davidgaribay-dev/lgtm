@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 export interface Team {
   id: string;
   name: string;
-  slug: string;
+  key: string;
   description: string | null;
   status: string;
   displayOrder: number;

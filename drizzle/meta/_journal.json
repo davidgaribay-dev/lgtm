@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770691151787,
-      "tag": "0000_clammy_silver_fox",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770693543920,
-      "tag": "0001_lovely_felicia_hardy",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770694173338,
-      "tag": "0002_careful_harpoon",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770696370929,
-      "tag": "0003_dapper_mother_askani",
+      "when": 1770766181579,
+      "tag": "0000_initial_schema",
       "breakpoints": true
     }
   ]

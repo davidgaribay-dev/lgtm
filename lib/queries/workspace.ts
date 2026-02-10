@@ -25,7 +25,7 @@ export async function getWorkspaceTeams(organizationId: string) {
     .select({
       id: project.id,
       name: project.name,
-      slug: project.slug,
+      key: project.key,
       description: project.description,
       status: project.status,
       displayOrder: project.displayOrder,
@@ -35,6 +35,40 @@ export async function getWorkspaceTeams(organizationId: string) {
       and(eq(project.organizationId, organizationId), isNull(project.deletedAt))
     )
     .orderBy(asc(project.displayOrder), asc(project.name));
+}
+
+/**
+ * Get project by team key
+ * Used for team-scoped route lookups
+ */
+export async function getProjectByTeamKey(
+  workspaceSlug: string,
+  teamKey: string
+) {
+  const upperKey = teamKey.toUpperCase();
+
+  const result = await db
+    .select({
+      id: project.id,
+      name: project.name,
+      key: project.key,
+      description: project.description,
+      organizationId: project.organizationId,
+      orgName: organization.name,
+      orgSlug: organization.slug,
+    })
+    .from(project)
+    .innerJoin(organization, eq(project.organizationId, organization.id))
+    .where(
+      and(
+        eq(organization.slug, workspaceSlug),
+        eq(project.key, upperKey),
+        isNull(project.deletedAt)
+      )
+    )
+    .limit(1);
+
+  return result[0];
 }
 
 /** Get user's first workspace slug (for redirects). */

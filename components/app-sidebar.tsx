@@ -18,6 +18,8 @@ import {
   ClipboardList,
   Server,
   LayoutDashboard,
+  Key,
+  Calendar,
   MoreHorizontal,
   Link2,
   Archive,
@@ -66,7 +68,6 @@ const TEAM_DND_TYPE = "SIDEBAR_TEAM";
 const teamSubItems = [
   { segment: "test-repo", label: "Test Repo", icon: BookOpen },
   { segment: "test-runs", label: "Test Runs", icon: ClipboardList },
-  { segment: "environments", label: "Environments", icon: Server },
   { segment: "views", label: "Views", icon: LayoutDashboard },
 ];
 
@@ -76,6 +77,46 @@ const settingsNavItems = [
     segment: "settings/security",
     label: "Security",
     icon: ShieldCheck,
+    exact: false,
+  },
+  {
+    segment: "settings/tokens",
+    label: "API Tokens",
+    icon: Key,
+    exact: false,
+  },
+  {
+    segment: "settings/cycles",
+    label: "Workspace Cycles",
+    icon: Calendar,
+    exact: false,
+  },
+];
+
+const teamSettingsNavItems = [
+  { segment: "settings", label: "Overview", icon: Settings, exact: true },
+  {
+    segment: "settings/members",
+    label: "Members",
+    icon: Users,
+    exact: false,
+  },
+  {
+    segment: "settings/environments",
+    label: "Environments",
+    icon: Server,
+    exact: false,
+  },
+  {
+    segment: "settings/tokens",
+    label: "API Tokens",
+    icon: Key,
+    exact: false,
+  },
+  {
+    segment: "settings/cycles",
+    label: "Cycles",
+    icon: Archive,
     exact: false,
   },
 ];
@@ -97,6 +138,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
   const segments = pathname.split("/").filter(Boolean);
   const isSettings = segments.length >= 2 && segments[1] === "settings";
+  const isTeamSettings = segments.length >= 3 && segments[2] === "settings" && !isSettings;
+  const teamSlug = isTeamSettings ? segments[1] : null;
 
   useEffect(() => {
     if (ready) {
@@ -149,7 +192,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
     .toUpperCase()
     .slice(0, 2);
 
-  const isExpanded = isSettings ? true : expanded;
+  const isExpanded = isSettings || isTeamSettings ? true : expanded;
   const basePath = `/${workspace.slug}`;
 
   return (
@@ -163,7 +206,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
         )}
       >
         {isSettings ? (
-          <SettingsHeader basePath={basePath} />
+          <SettingsHeader basePath={basePath} backLabel="Back to app" />
+        ) : isTeamSettings ? (
+          <SettingsHeader basePath={`${basePath}/${teamSlug}`} backLabel="Back to team" />
         ) : (
           <WorkspaceHeader
             workspace={workspace}
@@ -194,6 +239,25 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   : []),
               ].map((item) => {
                 const href = `${basePath}/${item.segment}`;
+                const active = item.exact
+                  ? pathname === href
+                  : pathname === href || pathname.startsWith(href + "/");
+                return (
+                  <NavItem
+                    key={href}
+                    href={href}
+                    label={item.label}
+                    icon={item.icon}
+                    active={active}
+                    expanded
+                  />
+                );
+              })}
+            </>
+          ) : isTeamSettings ? (
+            <>
+              {teamSettingsNavItems.map((item) => {
+                const href = `${basePath}/${teamSlug}/${item.segment}`;
                 const active = item.exact
                   ? pathname === href
                   : pathname === href || pathname.startsWith(href + "/");
@@ -261,7 +325,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
               {!isExpanded && localTeams.length > 0 && (
                 <div className="pt-4">
                   {localTeams.map((team) => {
-                    const teamPath = `${basePath}/${team.slug}`;
+                    const teamPath = `${basePath}/${team.key}`;
                     const active = pathname.startsWith(teamPath);
                     return (
                       <Tooltip key={team.id}>
@@ -387,15 +451,33 @@ function DraggableTeamItem({
   );
 }
 
-function SettingsHeader({ basePath }: { basePath: string }) {
+function SettingsHeader({
+  basePath,
+  backLabel = "Back to app",
+}: {
+  basePath: string;
+  backLabel?: string;
+}) {
+  // Determine the back link based on the basePath
+  let backLink: string;
+  if (basePath.includes("/settings")) {
+    backLink = basePath.replace("/settings", "");
+  } else if (backLabel === "Back to team") {
+    // Team settings: back to test-repo
+    backLink = `${basePath}/test-repo`;
+  } else {
+    // Workspace settings: back to dashboard
+    backLink = `${basePath}/dashboard`;
+  }
+
   return (
     <div className="border-b px-3 py-3">
       <Link
-        href={`${basePath}/dashboard`}
+        href={backLink}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ChevronLeft className="h-4 w-4" />
-        <span>Back to app</span>
+        <span>{backLabel}</span>
       </Link>
     </div>
   );
@@ -546,7 +628,7 @@ function TeamItem({
   dragRef: ConnectDragSource;
   canDrag: boolean;
 }) {
-  const teamPath = `${basePath}/${team.slug}`;
+  const teamPath = `${basePath}/${team.key}`;
   const isActive = pathname.startsWith(teamPath);
 
   function handleCopyLink() {
@@ -632,7 +714,7 @@ function TeamItem({
                 className={cn(
                   "flex h-7 items-center gap-2 rounded-md px-2 text-sm transition-colors",
                   active
-                    ? "bg-foreground text-background"
+                    ? "bg-muted/50 text-foreground font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
@@ -667,7 +749,7 @@ function NavItem({
         "flex h-9 items-center rounded-lg text-sm transition-colors",
         expanded ? "gap-3 px-3" : "justify-center",
         active
-          ? "bg-foreground text-background"
+          ? "bg-muted/50 text-foreground font-medium"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >

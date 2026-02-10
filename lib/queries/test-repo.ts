@@ -1,37 +1,10 @@
 import { eq, and, isNull, asc } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  project,
-  organization,
-  testSuite,
-  section,
-  testCase,
-  testStep,
-} from "@/db/schema";
+import { testSuite, section, testCase, testStep } from "@/db/schema";
+import { getProjectByTeamKey } from "./workspace";
 
-export async function getProjectByTeamSlug(
-  workspaceSlug: string,
-  teamSlug: string,
-) {
-  return db
-    .select({
-      id: project.id,
-      name: project.name,
-      slug: project.slug,
-      organizationId: project.organizationId,
-    })
-    .from(project)
-    .innerJoin(organization, eq(project.organizationId, organization.id))
-    .where(
-      and(
-        eq(organization.slug, workspaceSlug),
-        eq(project.slug, teamSlug),
-        isNull(project.deletedAt),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
-}
+// Re-export for backward compatibility
+export { getProjectByTeamKey };
 
 export async function getTestSuites(projectId: string) {
   return db

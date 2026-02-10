@@ -15,7 +15,7 @@ import Link from "next/link";
 export interface TeamRow {
   id: string;
   name: string;
-  slug: string;
+  key: string;
   description: string | null;
   status: string;
 }
@@ -37,7 +37,7 @@ export function getTeamColumns({
       header: "Team",
       cell: ({ row }) => (
         <Link
-          href={`/${workspaceSlug}/${row.original.slug}/test-repo`}
+          href={`/${workspaceSlug}/${row.original.key}/test-repo`}
           className="font-medium hover:underline"
         >
           {row.original.name}
@@ -45,11 +45,11 @@ export function getTeamColumns({
       ),
     },
     {
-      accessorKey: "slug",
-      header: "Slug",
+      accessorKey: "key",
+      header: "Key",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {row.original.slug}
+        <span className="font-mono text-sm text-muted-foreground">
+          {row.original.key}
         </span>
       ),
     },

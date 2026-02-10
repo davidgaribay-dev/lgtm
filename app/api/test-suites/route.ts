@@ -1,16 +1,17 @@
-import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { eq, and, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { testSuite, project, member } from "@/db/schema";
+import { getAuthContext } from "@/lib/api-auth";
+import {
+  hasTokenPermission,
+  hasProjectAccess,
+} from "@/lib/token-permissions";
 
-export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export async function POST(request: NextRequest) {
+  const authContext = await getAuthContext(request);
 
-  if (!session) {
+  if (!authContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,11 +25,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // Get org from project, verify membership
+  // Get org from project
   const proj = await db
     .select({ organizationId: project.organizationId })
     .from(project)
-    .where(eq(project.id, projectId))
+    .where(and(eq(project.id, projectId), isNull(project.deletedAt)))
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
@@ -36,21 +37,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  const membership = await db
-    .select({ role: member.role })
-    .from(member)
-    .where(
-      and(
-        eq(member.organizationId, proj.organizationId),
-        eq(member.userId, session.user.id),
-        inArray(member.role, ["owner", "admin", "member"]),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
+  // For API tokens, check permissions
+  if (authContext.type === "api_token") {
+    // Check organization match
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  if (!membership) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Check project scope
+    if (!hasProjectAccess(authContext, projectId)) {
+      return NextResponse.json(
+        { error: "Forbidden - project scope" },
+        { status: 403 },
+      );
+    }
+
+    // Check permission
+    if (!hasTokenPermission(authContext, "testSuite", "create")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  } else {
+    // For session auth, verify membership with member+ role
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+          inArray(member.role, ["owner", "admin", "member"]),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const [created] = await db
@@ -58,8 +84,8 @@ export async function POST(request: Request) {
     .values({
       name: name.trim(),
       projectId,
-      createdBy: session.user.id,
-      updatedBy: session.user.id,
+      createdBy: authContext.userId,
+      updatedBy: authContext.userId,
     })
     .returning();
 

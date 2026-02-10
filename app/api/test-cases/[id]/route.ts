@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { testCase } from "@/db/schema";
 import { verifyProjectAccess } from "@/lib/api-auth";
+import { hasTokenPermission } from "@/lib/token-permissions";
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -19,11 +20,26 @@ export async function PATCH(
     );
   }
 
-  const access = await verifyProjectAccess(projectId);
+  const access = await verifyProjectAccess(projectId, request);
   if (access instanceof NextResponse) return access;
 
+  const { authContext } = access;
+  if (!authContext) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Check token permissions
+  if (authContext.type === "api_token") {
+    if (!hasTokenPermission(authContext, "testCase", "update")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  }
+
   const updates: Record<string, unknown> = {
-    updatedBy: access.session.user.id,
+    updatedBy: authContext.userId,
   };
   if (title?.trim()) updates.title = title.trim();
   if (sectionId !== undefined) updates.sectionId = sectionId || null;
@@ -48,11 +64,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const url = new URL(_request.url);
+  const url = new URL(request.url);
   const projectId = url.searchParams.get("projectId");
 
   if (!projectId) {
@@ -62,15 +78,30 @@ export async function DELETE(
     );
   }
 
-  const access = await verifyProjectAccess(projectId);
+  const access = await verifyProjectAccess(projectId, request);
   if (access instanceof NextResponse) return access;
+
+  const { authContext } = access;
+  if (!authContext) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Check token permissions
+  if (authContext.type === "api_token") {
+    if (!hasTokenPermission(authContext, "testCase", "delete")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  }
 
   const [deleted] = await db
     .update(testCase)
     .set({
       deletedAt: new Date(),
-      deletedBy: access.session.user.id,
-      updatedBy: access.session.user.id,
+      deletedBy: authContext.userId,
+      updatedBy: authContext.userId,
     })
     .where(
       and(

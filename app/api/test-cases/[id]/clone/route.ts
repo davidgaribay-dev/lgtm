@@ -1,11 +1,15 @@
-import { NextResponse } from "next/server";
-import { eq, and, isNull, asc } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { eq, and, isNull, inArray, asc } from "drizzle-orm";
 import { db } from "@/db";
-import { testCase, testStep } from "@/db/schema";
-import { verifyProjectAccess } from "@/lib/api-auth";
+import { testCase, testStep, project, member } from "@/db/schema";
+import { getAuthContext } from "@/lib/api-auth";
+import {
+  hasTokenPermission,
+  hasProjectAccess,
+} from "@/lib/token-permissions";
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -19,8 +23,65 @@ export async function POST(
     );
   }
 
-  const access = await verifyProjectAccess(projectId);
-  if (access instanceof NextResponse) return access;
+  const authContext = await getAuthContext(request);
+
+  if (!authContext) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Get org from project
+  const proj = await db
+    .select({ organizationId: project.organizationId })
+    .from(project)
+    .where(and(eq(project.id, projectId), isNull(project.deletedAt)))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!proj) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  // For API tokens, check permissions
+  if (authContext.type === "api_token") {
+    // Check organization match
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Check project scope
+    if (!hasProjectAccess(authContext, projectId)) {
+      return NextResponse.json(
+        { error: "Forbidden - project scope" },
+        { status: 403 },
+      );
+    }
+
+    // Check permission (cloning requires create permission)
+    if (!hasTokenPermission(authContext, "testCase", "create")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  } else {
+    // For session auth, verify membership with member+ role
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+          inArray(member.role, ["owner", "admin", "member"]),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
 
   // Read source test case
   const source = await db
@@ -47,7 +108,7 @@ export async function POST(
     .where(and(eq(testStep.testCaseId, id), isNull(testStep.deletedAt)))
     .orderBy(asc(testStep.stepOrder));
 
-  const userId = access.session.user.id;
+  const userId = authContext.userId;
 
   // Insert cloned test case
   const [cloned] = await db

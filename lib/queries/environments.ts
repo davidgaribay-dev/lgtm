@@ -1,6 +1,10 @@
 import { db } from "@/db";
-import { environment, project, organization } from "@/db/schema";
+import { environment } from "@/db/schema";
 import { eq, and, isNull, asc } from "drizzle-orm";
+import { getProjectByTeamKey } from "./workspace";
+
+// Re-export for backward compatibility
+export { getProjectByTeamKey };
 
 /** Fetch all active environments for a project, ordered by display order. */
 export async function getProjectEnvironments(projectId: string) {
@@ -26,26 +30,3 @@ export async function getProjectEnvironments(projectId: string) {
     .orderBy(asc(environment.displayOrder), asc(environment.name));
 }
 
-/** Resolve a project by workspace slug + team slug. Returns null if not found. */
-export async function getProjectByTeamSlug(
-  workspaceSlug: string,
-  teamSlug: string,
-) {
-  return db
-    .select({
-      id: project.id,
-      name: project.name,
-      organizationId: project.organizationId,
-    })
-    .from(project)
-    .innerJoin(organization, eq(project.organizationId, organization.id))
-    .where(
-      and(
-        eq(organization.slug, workspaceSlug),
-        eq(project.slug, teamSlug),
-        isNull(project.deletedAt),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
-}

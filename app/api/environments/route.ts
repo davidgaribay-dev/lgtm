@@ -1,18 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { eq, and, isNull, inArray, max } from "drizzle-orm";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { environment, project, member } from "@/db/schema";
-import { headers } from "next/headers";
+import { getAuthContext } from "@/lib/api-auth";
+import {
+  hasTokenPermission,
+  hasProjectAccess,
+} from "@/lib/token-permissions";
 
 const VALID_TYPES = ["development", "staging", "qa", "production", "custom"];
 
-export async function GET(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export async function GET(request: NextRequest) {
+  const authContext = await getAuthContext(request);
 
-  if (!session) {
+  if (!authContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     );
   }
 
-  // Verify user is a member of the org that owns this project
+  // Verify user/token has access to the project
   const proj = await db
     .select({ organizationId: project.organizationId })
     .from(project)
@@ -41,20 +42,45 @@ export async function GET(request: Request) {
     );
   }
 
-  const membership = await db
-    .select({ role: member.role })
-    .from(member)
-    .where(
-      and(
-        eq(member.organizationId, proj.organizationId),
-        eq(member.userId, session.user.id),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
+  // For API tokens, check permissions
+  if (authContext.type === "api_token") {
+    // Check organization match
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  if (!membership) {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    // Check project scope (organization tokens bypass this)
+    if (!hasProjectAccess(authContext, projectId)) {
+      return NextResponse.json(
+        { error: "Forbidden - project scope" },
+        { status: 403 },
+      );
+    }
+
+    // Check permission
+    if (!hasTokenPermission(authContext, "environment", "read")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  } else {
+    // For session auth, verify membership
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
   }
 
   const environments = await db
@@ -80,12 +106,10 @@ export async function GET(request: Request) {
   return NextResponse.json(environments);
 }
 
-export async function POST(request: Request) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export async function POST(request: NextRequest) {
+  const authContext = await getAuthContext(request);
 
-  if (!session) {
+  if (!authContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -128,22 +152,46 @@ export async function POST(request: Request) {
     );
   }
 
-  // Verify user has admin/owner role
-  const membership = await db
-    .select({ role: member.role })
-    .from(member)
-    .where(
-      and(
-        eq(member.organizationId, proj.organizationId),
-        eq(member.userId, session.user.id),
-        inArray(member.role, ["owner", "admin"]),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
+  // For API tokens, check permissions
+  if (authContext.type === "api_token") {
+    // Check organization match
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  if (!membership) {
-    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    // Check project scope (organization tokens bypass this)
+    if (!hasProjectAccess(authContext, projectId)) {
+      return NextResponse.json(
+        { error: "Forbidden - project scope" },
+        { status: 403 },
+      );
+    }
+
+    // Check permission
+    if (!hasTokenPermission(authContext, "environment", "create")) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
+    }
+  } else {
+    // For session auth, verify user has admin/owner role
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+          inArray(member.role, ["owner", "admin"]),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership) {
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    }
   }
 
   // Check name uniqueness within project
@@ -182,7 +230,7 @@ export async function POST(request: Request) {
   if (isDefault) {
     await db
       .update(environment)
-      .set({ isDefault: false, updatedBy: session.user.id })
+      .set({ isDefault: false, updatedBy: authContext.userId })
       .where(
         and(
           eq(environment.projectId, projectId),
@@ -202,8 +250,8 @@ export async function POST(request: Request) {
       isDefault,
       displayOrder: (maxOrder ?? -1) + 1,
       projectId,
-      createdBy: session.user.id,
-      updatedBy: session.user.id,
+      createdBy: authContext.userId,
+      updatedBy: authContext.userId,
     })
     .returning();
 

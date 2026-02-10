@@ -119,20 +119,22 @@ export const project = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
-    slug: text("slug").notNull(),
+    key: text("key").notNull(),
     description: text("description"),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("active"),
     displayOrder: integer("display_order").notNull().default(0),
+    nextTestCaseNumber: integer("next_test_case_number").notNull().default(1),
     ...auditFields,
   },
   (table) => [
     index("project_organization_id_idx").on(table.organizationId),
-    uniqueIndex("project_org_slug_active_unique")
-      .on(table.organizationId, table.slug)
+    uniqueIndex("project_org_key_active_unique")
+      .on(table.organizationId, table.key)
       .where(sql`${table.deletedAt} is null`),
+    index("project_key_idx").on(table.key),
   ],
 );
 
@@ -201,12 +203,26 @@ export const testCase = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
+    cycleId: text("cycle_id").references(() => cycle.id, {
+      onDelete: "set null",
+    }),
+    workspaceCycleId: text("workspace_cycle_id").references(() => workspaceCycle.id, {
+      onDelete: "set null",
+    }),
+    caseNumber: integer("case_number"),
+    caseKey: text("case_key"),
     displayOrder: integer("display_order").notNull().default(0),
     ...auditFields,
   },
   (table) => [
     index("test_case_project_id_idx").on(table.projectId),
     index("test_case_section_id_idx").on(table.sectionId),
+    index("test_case_cycle_id_idx").on(table.cycleId),
+    index("test_case_workspace_cycle_id_idx").on(table.workspaceCycleId),
+    uniqueIndex("test_case_project_number_unique")
+      .on(table.projectId, table.caseNumber)
+      .where(sql`${table.deletedAt} is null`),
+    index("test_case_case_key_idx").on(table.caseKey),
   ],
 );
 
@@ -221,6 +237,7 @@ export const testStep = pgTable(
       .references(() => testCase.id, { onDelete: "cascade" }),
     stepOrder: integer("step_order").notNull(),
     action: text("action").notNull(),
+    data: text("data"),
     expectedResult: text("expected_result"),
     ...auditFields,
   },
@@ -294,6 +311,70 @@ export const environment = pgTable(
 );
 
 // ============================================================
+// Application tables — Cycle Management (project-scoped)
+// ============================================================
+
+export const cycle = pgTable(
+  "cycle",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    description: text("description"),
+    startDate: timestamp("start_date", { withTimezone: true }),
+    endDate: timestamp("end_date", { withTimezone: true }),
+    status: text("status").notNull().default("planned"),
+    isCurrent: boolean("is_current").notNull().default(false),
+    displayOrder: integer("display_order").notNull().default(0),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    ...auditFields,
+  },
+  (table) => [
+    uniqueIndex("cycle_project_name_active_unique")
+      .on(table.projectId, table.name)
+      .where(sql`${table.deletedAt} is null`),
+    index("cycle_project_id_idx").on(table.projectId),
+    index("cycle_status_idx").on(table.status),
+    index("cycle_start_date_idx").on(table.startDate),
+  ],
+);
+
+// ============================================================
+// Application tables — Workspace Cycle Management (organization-scoped)
+// ============================================================
+
+export const workspaceCycle = pgTable(
+  "workspace_cycle",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    description: text("description"),
+    startDate: timestamp("start_date", { withTimezone: true }),
+    endDate: timestamp("end_date", { withTimezone: true }),
+    status: text("status").notNull().default("planned"),
+    isCurrent: boolean("is_current").notNull().default(false),
+    displayOrder: integer("display_order").notNull().default(0),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    ...auditFields,
+  },
+  (table) => [
+    uniqueIndex("workspace_cycle_org_name_active_unique")
+      .on(table.organizationId, table.name)
+      .where(sql`${table.deletedAt} is null`),
+    index("workspace_cycle_organization_id_idx").on(table.organizationId),
+    index("workspace_cycle_status_idx").on(table.status),
+    index("workspace_cycle_start_date_idx").on(table.startDate),
+  ],
+);
+
+// ============================================================
 // Application tables — Test Execution (project-scoped)
 // ============================================================
 
@@ -333,6 +414,12 @@ export const testRun = pgTable(
     environmentId: text("environment_id").references(() => environment.id, {
       onDelete: "set null",
     }),
+    cycleId: text("cycle_id").references(() => cycle.id, {
+      onDelete: "set null",
+    }),
+    workspaceCycleId: text("workspace_cycle_id").references(() => workspaceCycle.id, {
+      onDelete: "set null",
+    }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     executedBy: text("executed_by").references(() => user.id, {
@@ -344,6 +431,8 @@ export const testRun = pgTable(
     index("test_run_project_id_idx").on(table.projectId),
     index("test_run_test_plan_id_idx").on(table.testPlanId),
     index("test_run_environment_id_idx").on(table.environmentId),
+    index("test_run_cycle_id_idx").on(table.cycleId),
+    index("test_run_workspace_cycle_id_idx").on(table.workspaceCycleId),
   ],
 );
 
@@ -366,11 +455,19 @@ export const testResult = pgTable(
     executedAt: timestamp("executed_at", { withTimezone: true }),
     duration: integer("duration"),
     comment: text("comment"),
+    defectCycleId: text("defect_cycle_id").references(() => cycle.id, {
+      onDelete: "set null",
+    }),
+    defectWorkspaceCycleId: text("defect_workspace_cycle_id").references(() => workspaceCycle.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
   (table) => [
     index("test_result_test_run_id_idx").on(table.testRunId),
     index("test_result_test_case_id_idx").on(table.testCaseId),
+    index("test_result_defect_cycle_id_idx").on(table.defectCycleId),
+    index("test_result_defect_workspace_cycle_id_idx").on(table.defectWorkspaceCycleId),
     uniqueIndex("test_result_run_case_unique").on(
       table.testRunId,
       table.testCaseId,
@@ -446,5 +543,178 @@ export const shareLink = pgTable(
   (table) => [
     index("share_link_project_id_idx").on(table.projectId),
     index("share_link_entity_idx").on(table.entityType, table.entityId),
+  ],
+);
+
+// ============================================================
+// Application tables — API Tokens
+// ============================================================
+
+export const apiToken = pgTable(
+  "api_token",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    description: text("description"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenPrefix: text("token_prefix").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    lastUsedIp: text("last_used_ip"),
+    status: text("status").notNull().default("active"),
+    scopeType: text("scope_type").notNull().default("personal"),
+    scopeStatus: text("scope_status").notNull().default("approved"),
+    approvedBy: text("approved_by").references(() => user.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    ...auditFields,
+  },
+  (table) => [
+    index("api_token_user_id_idx").on(table.userId),
+    index("api_token_organization_id_idx").on(table.organizationId),
+    index("api_token_token_hash_idx").on(table.tokenHash),
+    index("api_token_scope_type_idx").on(table.scopeType),
+    index("api_token_scope_status_idx").on(table.scopeStatus),
+    uniqueIndex("api_token_user_name_active_unique")
+      .on(table.userId, table.name)
+      .where(sql`${table.deletedAt} is null AND ${table.status} = 'active'`),
+  ],
+);
+
+export const apiTokenPermission = pgTable(
+  "api_token_permission",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tokenId: text("token_id")
+      .notNull()
+      .references(() => apiToken.id, { onDelete: "cascade" }),
+    resource: text("resource").notNull(),
+    action: text("action").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("api_token_permission_token_id_idx").on(table.tokenId),
+    uniqueIndex("api_token_permission_unique").on(
+      table.tokenId,
+      table.resource,
+      table.action,
+    ),
+  ],
+);
+
+export const apiTokenProjectScope = pgTable(
+  "api_token_project_scope",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tokenId: text("token_id")
+      .notNull()
+      .references(() => apiToken.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("api_token_project_scope_token_id_idx").on(table.tokenId),
+    index("api_token_project_scope_project_id_idx").on(table.projectId),
+    uniqueIndex("api_token_project_scope_unique").on(
+      table.tokenId,
+      table.projectId,
+    ),
+  ],
+);
+
+export const apiTokenActivity = pgTable(
+  "api_token_activity",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    tokenId: text("token_id")
+      .notNull()
+      .references(() => apiToken.id, { onDelete: "cascade" }),
+    method: text("method").notNull(),
+    path: text("path").notNull(),
+    statusCode: integer("status_code").notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    resource: text("resource"),
+    action: text("action"),
+    allowed: boolean("allowed").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("api_token_activity_token_id_idx").on(table.tokenId),
+    index("api_token_activity_created_at_idx").on(table.createdAt),
+    index("api_token_activity_ip_idx").on(table.ipAddress),
+  ],
+);
+
+// ============================================================
+// Application tables — Team Membership (project-scoped)
+// ============================================================
+
+export const projectMember = pgTable(
+  "project_member",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("team_member"),
+    ...auditFields,
+  },
+  (table) => [
+    index("project_member_project_id_idx").on(table.projectId),
+    index("project_member_user_id_idx").on(table.userId),
+    uniqueIndex("project_member_project_user_active_unique")
+      .on(table.projectId, table.userId)
+      .where(sql`${table.deletedAt} is null`),
+  ],
+);
+
+export const projectMemberInvitation = pgTable(
+  "project_member_invitation",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: text("role").notNull().default("team_member"),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    inviterId: text("inviter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("project_member_invitation_project_id_idx").on(table.projectId),
+    uniqueIndex("project_member_invitation_project_email_pending_unique")
+      .on(table.projectId, table.email)
+      .where(sql`${table.status} = 'pending'`),
   ],
 );

@@ -4,8 +4,20 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { project, member } from "@/db/schema";
 import { headers } from "next/headers";
+import { validateTeamKey } from "@/lib/utils";
 
-const RESERVED_SLUGS = ["dashboard", "teams", "settings"];
+const RESERVED_TEAM_KEYS = [
+  "TEST",
+  "TEMP",
+  "ADMIN",
+  "ROOT",
+  "API",
+  "APP",
+  "WEB",
+  "DASHBOARD",
+  "TEAMS",
+  "SETTINGS",
+];
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({
@@ -17,18 +29,27 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, slug, description, organizationId } = body;
+  const { name, key, description, organizationId } = body;
 
-  if (!name?.trim() || !slug?.trim() || !organizationId) {
+  if (!name?.trim() || !key?.trim() || !organizationId) {
     return NextResponse.json(
-      { message: "Name, slug, and organization ID are required" },
+      { message: "Name, key, and organization ID are required" },
       { status: 400 },
     );
   }
 
-  if (RESERVED_SLUGS.includes(slug.trim())) {
+  const upperKey = key.trim().toUpperCase();
+
+  // Validate key format
+  const validation = validateTeamKey(upperKey);
+  if (!validation.valid) {
+    return NextResponse.json({ message: validation.error }, { status: 400 });
+  }
+
+  // Check if reserved
+  if (RESERVED_TEAM_KEYS.includes(upperKey)) {
     return NextResponse.json(
-      { message: "This slug is reserved" },
+      { message: "This key is reserved" },
       { status: 400 },
     );
   }
@@ -51,14 +72,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  // Check slug uniqueness within org
+  // Check key uniqueness within org
   const existing = await db
     .select({ id: project.id })
     .from(project)
     .where(
       and(
         eq(project.organizationId, organizationId),
-        eq(project.slug, slug.trim()),
+        eq(project.key, upperKey),
         isNull(project.deletedAt),
       ),
     )
@@ -66,7 +87,7 @@ export async function POST(request: Request) {
 
   if (existing.length > 0) {
     return NextResponse.json(
-      { message: "A team with this slug already exists" },
+      { message: "A team with this key already exists" },
       { status: 409 },
     );
   }
@@ -87,7 +108,7 @@ export async function POST(request: Request) {
     .insert(project)
     .values({
       name: name.trim(),
-      slug: slug.trim(),
+      key: upperKey,
       description: description || null,
       organizationId,
       displayOrder: (maxOrder ?? -1) + 1,

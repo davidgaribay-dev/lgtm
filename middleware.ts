@@ -21,6 +21,10 @@ export function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
   const { pathname } = request.nextUrl;
 
+  // Generate correlation ID for request tracking
+  const correlationId =
+    request.headers.get('x-correlation-id') || crypto.randomUUID();
+
   // Block signup page and API when registration is closed
   if (!registrationOpen) {
     if (pathname === "/signup") {
@@ -69,7 +73,31 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // Normalize team keys to uppercase (e.g., /workspace/eng/... → /workspace/ENG/...)
+  // Pattern: /workspaceSlug/teamKey/...
+  const teamKeyPattern = /^\/([^\/]+)\/([a-z]{2,10})(?:\/|$)/;
+  const match = pathname.match(teamKeyPattern);
+
+  if (match) {
+    const [, workspaceSlug, teamKey] = match;
+    const upperKey = teamKey.toUpperCase();
+
+    // Check if it looks like a team key (all letters) and is lowercase
+    if (/^[a-z]{2,10}$/.test(teamKey)) {
+      const newPath = pathname.replace(
+        `/${workspaceSlug}/${teamKey}`,
+        `/${workspaceSlug}/${upperKey}`
+      );
+      return NextResponse.redirect(new URL(newPath, request.url));
+    }
+  }
+
+  const response = NextResponse.next();
+
+  // Attach correlation ID to response headers for client access
+  response.headers.set('x-correlation-id', correlationId);
+
+  return response;
 }
 
 export const config = {

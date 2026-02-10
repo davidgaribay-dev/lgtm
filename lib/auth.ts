@@ -18,6 +18,11 @@ export const auth = betterAuth({
     schema,
   }),
 
+  // CSRF protection: trust localhost in dev, production URL in prod
+  trustedOrigins: [
+    process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  ],
+
   user: {
     additionalFields: {
       description: {
