@@ -22,6 +22,18 @@ export default async function AppLayout({
     redirect("/api/auth/clear-session");
   }
 
+  // Guard: redirect to onboarding if not complete
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onboardingStep = (session.user as any).onboardingStep as
+    | string
+    | null;
+  if (onboardingStep === "workspace") {
+    redirect("/onboarding/workspace");
+  }
+  if (onboardingStep === "invite") {
+    redirect("/onboarding/invite");
+  }
+
   const adminOrg = await db
     .select({
       id: organization.id,

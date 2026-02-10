@@ -6,7 +6,7 @@ const registrationOpen =
   process.env.NEXT_PUBLIC_REGISTRATION_OPEN !== "false";
 
 const authRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"];
-const protectedRoutes = ["/dashboard"];
+const protectedRoutes = ["/dashboard", "/settings", "/onboarding"];
 
 export function middleware(request: NextRequest) {
   const sessionCookie = getSessionCookie(request);
@@ -51,6 +51,8 @@ export const config = {
     "/forgot-password",
     "/reset-password",
     "/dashboard/:path*",
+    "/settings/:path*",
+    "/onboarding/:path*",
     "/api/auth/sign-up/email",
   ],
 };
