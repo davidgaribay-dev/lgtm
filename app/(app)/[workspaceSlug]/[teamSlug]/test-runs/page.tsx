@@ -1,6 +1,7 @@
 import { eq, and, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { project, organization } from "@/db/schema";
+import { PageContainer } from "@/components/page-container";
 
 export default async function TestRunsPage({
   params,
@@ -24,18 +25,20 @@ export default async function TestRunsPage({
     .then((rows) => rows[0] ?? null);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {team?.name} — Test Runs
-        </h1>
-        <p className="text-muted-foreground">
-          View and manage test execution runs.
-        </p>
+    <PageContainer>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {team?.name} — Test Runs
+          </h1>
+          <p className="text-muted-foreground">
+            View and manage test execution runs.
+          </p>
+        </div>
+        <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
+          <p className="text-sm text-muted-foreground">Coming soon</p>
+        </div>
       </div>
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
-        <p className="text-sm text-muted-foreground">Coming soon</p>
-      </div>
-    </div>
+    </PageContainer>
   );
 }

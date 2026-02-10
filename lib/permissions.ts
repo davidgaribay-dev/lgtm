@@ -8,6 +8,7 @@ const statements = {
 
   // Application-specific resources
   project: ["create", "read", "update", "delete"],
+  environment: ["create", "read", "update", "delete"],
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
@@ -21,6 +22,7 @@ export const ownerRole = ac.newRole({
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
   project: ["create", "read", "update", "delete"],
+  environment: ["create", "read", "update", "delete"],
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
@@ -32,6 +34,7 @@ export const adminRole = ac.newRole({
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
   project: ["create", "read", "update", "delete"],
+  environment: ["create", "read", "update", "delete"],
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
@@ -40,6 +43,7 @@ export const adminRole = ac.newRole({
 
 export const memberRole = ac.newRole({
   project: ["read"],
+  environment: ["read"],
   testCase: ["create", "read", "update"],
   testRun: ["create", "read", "execute"],
   testPlan: ["read", "update"],
@@ -48,6 +52,7 @@ export const memberRole = ac.newRole({
 
 export const viewerRole = ac.newRole({
   project: ["read"],
+  environment: ["read"],
   testCase: ["read"],
   testRun: ["read"],
   testPlan: ["read"],

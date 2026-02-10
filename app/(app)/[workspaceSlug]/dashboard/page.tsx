@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PageContainer } from "@/components/page-container";
 import { DashboardContent } from "./dashboard-content";
 
 export const metadata: Metadata = {
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardContent />;
+  return (
+    <PageContainer>
+      <DashboardContent />
+    </PageContainer>
+  );
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { PageContainer } from "@/components/page-container";
 import { SecurityContent } from "./security-content";
 
 export const metadata: Metadata = {
@@ -17,5 +18,9 @@ export default async function SecurityPage() {
     redirect("/login");
   }
 
-  return <SecurityContent />;
+  return (
+    <PageContainer>
+      <SecurityContent />
+    </PageContainer>
+  );
 }

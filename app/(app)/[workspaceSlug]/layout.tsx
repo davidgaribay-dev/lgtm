@@ -48,7 +48,7 @@ export default async function WorkspaceLayout({
       <div className="min-h-svh bg-muted dark:bg-background">
         <AppSidebar user={session.user} />
         <SidebarMainArea>
-          <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+          <main>{children}</main>
         </SidebarMainArea>
       </div>
     </WorkspaceProvider>

@@ -21,16 +21,22 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 ### Route structure
 
 - `app/(auth)/` — public auth pages (login, signup, forgot-password, reset-password) and invitation acceptance (`invite/[id]`) with centered card layout
-- `app/(app)/` — protected pages (dashboard, settings, future project/test screens) with collapsible sidebar; layout checks session, redirects unauthenticated users, and guards against incomplete onboarding
-- `app/onboarding/` — onboarding flow for new users (workspace creation, team invitations); requires auth, redirects to dashboard when complete
+- `app/(app)/[workspaceSlug]/` — protected workspace-scoped pages (dashboard, teams, settings, team sub-pages); layout validates workspace membership, redirects unauthenticated users, and guards against incomplete onboarding
+- `app/(app)/[workspaceSlug]/[teamSlug]/` — team-scoped pages (test-repo, test-runs, environments, views)
+- `app/onboarding/` — onboarding flow for new users (workspace creation, team invitations, first team creation); requires auth, redirects to dashboard when complete
 - `app/api/auth/[...all]/route.ts` — Better Auth catch-all
 - `app/api/upload/route.ts` — Vercel Blob upload endpoint
 - `app/api/check-slug/route.ts` — Organization slug uniqueness check
+- `app/api/check-team-slug/route.ts` — Team slug uniqueness check (scoped to org)
+- `app/api/teams/route.ts` — Team CRUD (POST creates with auto-incrementing `displayOrder`)
+- `app/api/teams/reorder/route.ts` — PUT endpoint for batch reorder of team `displayOrder`
+- `app/api/environments/route.ts` — Environment CRUD: GET (list by projectId) + POST (create); scoped to project/team
+- `app/api/environments/[id]/route.ts` — Environment PUT (update) + DELETE (soft-delete)
 - `app/api/onboarding/advance/route.ts` — Advances onboarding step and clears session cache
 
 **Server/Client split:** `page.tsx` files are server components that fetch data; interactive parts live in separate `"use client"` files (e.g. `login-form.tsx`, `dashboard-content.tsx`, `workspace-form.tsx`).
 
-**Middleware** (`middleware.ts`): redirects authenticated users away from auth pages → `/dashboard`, unauthenticated users away from protected pages (`/dashboard`, `/settings`, `/onboarding`) → `/login`, and blocks signup when registration is closed.
+**Middleware** (`middleware.ts`): redirects authenticated users away from auth pages → `/workspace-redirect` (which resolves their first workspace slug), unauthenticated users away from protected pages → `/login`, and blocks signup when registration is closed.
 
 ### Naming conventions
 
@@ -68,7 +74,7 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 - Four roles: **owner** (full control), **admin** (all except org delete), **member** (create/edit test cases, execute runs), **viewer** (read-only)
 - Invitation system: 7-day expiry, emails sent via Resend (falls back to console.log if `RESEND_API_KEY` not set)
 - Organization plugin tables: `organization`, `member`, `invitation` + `activeOrganizationId` on `session`
-- Permission resources: `organization`, `member`, `invitation`, `project`, `testCase`, `testRun`, `testPlan`, `shareLink`
+- Permission resources: `organization`, `member`, `invitation`, `project`, `environment`, `testCase`, `testRun`, `testPlan`, `shareLink`
 
 ### Onboarding
 
@@ -78,22 +84,23 @@ Two distinct flows handle user registration:
 1. Signup (`/signup`) — name, email, password, optional profile photo; sets `onboardingStep: "workspace"`
 2. Create workspace (`/onboarding/workspace`) — workspace name, URL slug (auto-generated with real-time uniqueness check), optional logo
 3. Invite team (`/onboarding/invite`) — add invitees by email with role selection, or skip
-4. Complete → `onboardingStep` set to `null` → redirected to `/dashboard`
+4. Create first team (`/onboarding/team`) — team name, slug (auto-generated with uniqueness check per org), optional description
+5. Complete → `onboardingStep` set to `null` → redirected to `/{workspaceSlug}/dashboard`
 
 **Flow B — Invited user joining a workspace:**
 1. Click invite link (`/invite/[id]`) — shows invitation details and org name
 2. Create account or sign in — signup form accepts `?invite=ID` to auto-accept after signup
-3. Auto-joined to workspace → redirected to `/dashboard` (no onboarding steps)
+3. Auto-joined to workspace → redirected to `/{workspaceSlug}/dashboard` (no onboarding steps)
 
-**Onboarding tracking:** `user.onboardingStep` column — `null` = complete, `"workspace"` = needs workspace, `"invite"` = needs invites. The app layout guards against incomplete onboarding. The `/api/onboarding/advance` endpoint validates step transitions and clears the session cache cookie.
+**Onboarding tracking:** `user.onboardingStep` column — `null` = complete, `"workspace"` = needs workspace, `"invite"` = needs invites, `"team"` = needs first team. The app layout guards against incomplete onboarding. The `/api/onboarding/advance` endpoint validates step transitions (`workspace` → `invite` → `team` → `null`) and clears the session cache cookie.
 
 ### Settings
 
-Settings pages live under `app/(app)/settings/` with a Linear-style sidebar nav:
+Settings pages live under `app/(app)/[workspaceSlug]/settings/` with a Linear-style sidebar nav:
 
-- **Profile** (`/settings`) — name, photo, description
-- **Security** (`/settings/security`) — password change
-- **Members** (`/settings/members`) — team member management (invite, remove, change role, revoke invitations); only visible to org owners/admins; uses TanStack React Table with shadcn DataTable
+- **Profile** (`/{slug}/settings`) — name, photo, description
+- **Security** (`/{slug}/settings/security`) — password change
+- **Members** (`/{slug}/settings/members`) — team member management (invite, remove, change role, revoke invitations); only visible to org owners/admins; uses TanStack React Table with shadcn DataTable
 
 The sidebar forces expanded state on settings pages and conditionally shows the Members nav item based on the user's admin org membership.
 
@@ -104,7 +111,7 @@ Better Auth owns seven tables (`user`, `session`, `account`, `verification`, `or
 Application tables use snake_case column names and are organized into three domains:
 
 **Organization-scoped:**
-- `project` — top-level container within an organization
+- `project` — teams (called "teams" in UI, `project` in DB); has `display_order` for user-controlled ordering, `slug` unique per org
 
 **Test Design (project-scoped):**
 - `test_suite` — top-level grouping of test cases
@@ -114,9 +121,12 @@ Application tables use snake_case column names and are organized into three doma
 - `tag` — labels scoped to a project (partial unique index on name where not deleted)
 - `test_case_tag` — many-to-many junction
 
+**Environment Configuration (project-scoped):**
+- `environment` — named test environments (name, url, description, type, is_default, display_order); partial unique index on `(project_id, name)` where not deleted; types: development, staging, qa, production, custom; CRUD via `/api/environments`; query helpers in `lib/queries/environments.ts`
+
 **Test Execution (project-scoped):**
 - `test_plan` — planned collection of test cases (draft/active/completed/archived)
-- `test_run` — execution instance (linked to plan or ad-hoc), tracks environment and timing
+- `test_run` — execution instance (linked to plan or ad-hoc), tracks environment (legacy text field + `environment_id` FK to `environment` table) and timing
 - `test_result` — verdict per test case per run (passed/failed/blocked/skipped/untested)
 - `test_step_result` — per-step granular results
 
@@ -140,10 +150,11 @@ Application tables use snake_case column names and are organized into three doma
 - `lib/utils.ts` exports `cn()` (clsx + tailwind-merge) and `generateSlug()` for URL slug generation
 - Dark mode support via `next-themes` and `.dark` class variant
 - Icons: `lucide-react`
-- Collapsible sidebar with Zustand-persisted state (`lib/stores/sidebar-store.ts`), hydration-safe via `useSidebarReady()` hook
+- Collapsible sidebar (`components/app-sidebar.tsx`) with Zustand-persisted state (`lib/stores/sidebar-store.ts`), hydration-safe via `useSidebarReady()` hook. Linear-style "Your teams" section with collapsible team items, "+" button for quick team creation (admin-only), and drag-and-drop reordering via `react-dnd` with `HTML5Backend` (admin-only). Team order persists to DB via `display_order` column.
+- Shared `CreateTeamDialog` (`components/create-team-dialog.tsx`) — reused in sidebar and teams page for team creation with slug auto-generation and availability checking
+- Workspace context (`lib/workspace-context.tsx`) — provides `workspace`, `teams`, `userRole`, `isAdmin` to all workspace-scoped pages
 - Reusable `DataTable` component (`components/data-table.tsx`) wrapping TanStack React Table with shadcn Table primitives
 - Shared auth UI components (`components/auth-ui.tsx`): `AuthInput`, `AuthLabel`, `PasswordInput`
-- Onboarding step indicator (`components/onboarding-steps.tsx`)
 
 ### Registration control
 

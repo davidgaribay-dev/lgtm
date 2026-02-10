@@ -5,6 +5,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { organization, member, invitation, user } from "@/db/schema";
+import { PageContainer } from "@/components/page-container";
 import { MembersContent } from "./members-content";
 
 export const metadata: Metadata = {
@@ -83,11 +84,13 @@ export default async function MembersPage({
     );
 
   return (
-    <MembersContent
-      org={adminOrg}
-      members={members}
-      pendingInvitations={pendingInvitations}
-      currentUserId={session.user.id}
-    />
+    <PageContainer>
+      <MembersContent
+        org={adminOrg}
+        members={members}
+        pendingInvitations={pendingInvitations}
+        currentUserId={session.user.id}
+      />
+    </PageContainer>
   );
 }

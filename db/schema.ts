@@ -151,6 +151,7 @@ export const testSuite = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
+    displayOrder: integer("display_order").notNull().default(0),
     ...auditFields,
   },
   (table) => [index("test_suite_project_id_idx").on(table.projectId)],
@@ -200,6 +201,7 @@ export const testCase = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
+    displayOrder: integer("display_order").notNull().default(0),
     ...auditFields,
   },
   (table) => [
@@ -263,6 +265,35 @@ export const testCaseTag = pgTable(
 );
 
 // ============================================================
+// Application tables — Environment Configuration (project-scoped)
+// ============================================================
+
+export const environment = pgTable(
+  "environment",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    url: text("url"),
+    description: text("description"),
+    type: text("type").notNull().default("custom"),
+    isDefault: boolean("is_default").notNull().default(false),
+    displayOrder: integer("display_order").notNull().default(0),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    ...auditFields,
+  },
+  (table) => [
+    uniqueIndex("environment_project_name_active_unique")
+      .on(table.projectId, table.name)
+      .where(sql`${table.deletedAt} is null`),
+    index("environment_project_id_idx").on(table.projectId),
+  ],
+);
+
+// ============================================================
 // Application tables — Test Execution (project-scoped)
 // ============================================================
 
@@ -299,6 +330,9 @@ export const testRun = pgTable(
     }),
     status: text("status").notNull().default("pending"),
     environment: text("environment"),
+    environmentId: text("environment_id").references(() => environment.id, {
+      onDelete: "set null",
+    }),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     executedBy: text("executed_by").references(() => user.id, {
@@ -309,6 +343,7 @@ export const testRun = pgTable(
   (table) => [
     index("test_run_project_id_idx").on(table.projectId),
     index("test_run_test_plan_id_idx").on(table.testPlanId),
+    index("test_run_environment_id_idx").on(table.environmentId),
   ],
 );
 

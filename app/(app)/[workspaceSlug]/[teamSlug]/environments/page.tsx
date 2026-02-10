@@ -1,6 +1,20 @@
-import { eq, and, isNull } from "drizzle-orm";
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { eq, and, inArray } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { project, organization } from "@/db/schema";
+import { member } from "@/db/schema";
+import {
+  getProjectByTeamSlug,
+  getProjectEnvironments,
+} from "@/lib/queries/environments";
+import { PageContainer } from "@/components/page-container";
+import { EnvironmentsContent } from "./environments-content";
+
+export const metadata: Metadata = {
+  title: "Environments — LGTM",
+};
 
 export default async function EnvironmentsPage({
   params,
@@ -9,33 +23,43 @@ export default async function EnvironmentsPage({
 }) {
   const { workspaceSlug, teamSlug } = await params;
 
-  const team = await db
-    .select({ name: project.name })
-    .from(project)
-    .innerJoin(organization, eq(project.organizationId, organization.id))
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  const team = await getProjectByTeamSlug(workspaceSlug, teamSlug);
+
+  if (!team) {
+    redirect(`/${workspaceSlug}/dashboard`);
+  }
+
+  // Check if user is admin/owner for showing management UI
+  const adminMembership = await db
+    .select({ role: member.role })
+    .from(member)
     .where(
       and(
-        eq(organization.slug, workspaceSlug),
-        eq(project.slug, teamSlug),
-        isNull(project.deletedAt),
+        eq(member.organizationId, team.organizationId),
+        eq(member.userId, session.user.id),
+        inArray(member.role, ["owner", "admin"]),
       ),
     )
     .limit(1)
     .then((rows) => rows[0] ?? null);
 
+  const environments = await getProjectEnvironments(team.id);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          {team?.name} — Environments
-        </h1>
-        <p className="text-muted-foreground">
-          Configure test environments and configurations.
-        </p>
-      </div>
-      <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
-        <p className="text-sm text-muted-foreground">Coming soon</p>
-      </div>
-    </div>
+    <PageContainer>
+      <EnvironmentsContent
+        environments={environments}
+        team={{ id: team.id, name: team.name }}
+        isAdmin={!!adminMembership}
+      />
+    </PageContainer>
   );
 }
