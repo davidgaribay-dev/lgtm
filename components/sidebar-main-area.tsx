@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useSidebarStore, useSidebarReady } from "@/lib/stores/sidebar-store";
 import { cn } from "@/lib/utils";
 
 export function SidebarMainArea({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const expanded = useSidebarStore((s) => s.expanded);
   const ready = useSidebarReady();
   const [enableTransition, setEnableTransition] = useState(false);
+
+  const isSettings = pathname.startsWith("/settings");
+  const isExpanded = isSettings ? true : expanded;
 
   useEffect(() => {
     if (ready) {
@@ -21,7 +26,7 @@ export function SidebarMainArea({ children }: { children: React.ReactNode }) {
         "min-h-svh",
         !ready && "invisible",
         enableTransition && "transition-[margin-left] duration-200",
-        expanded ? "ml-64" : "ml-16",
+        isExpanded ? "ml-64" : "ml-16",
       )}
     >
       {children}
