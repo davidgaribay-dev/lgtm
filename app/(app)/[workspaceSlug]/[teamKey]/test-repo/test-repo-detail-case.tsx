@@ -11,27 +11,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TestStepsEditor, type TestStep } from "@/components/test-steps-editor";
 import { CommentSection } from "@/components/comments/comment-section";
 import { authClient } from "@/lib/auth-client";
 import { useWorkspace } from "@/lib/workspace-context";
-
-interface TeamMember {
-  userId: string;
-  name: string;
-  email: string;
-  image: string | null;
-  role: string;
-}
+import {
+  TestCasePropertiesSidebar,
+  type TeamMember,
+  type TestCasePropertyValues,
+} from "@/components/test-case-properties-sidebar";
 
 interface TestRepoDetailCaseProps {
   testCase: {
@@ -81,15 +69,17 @@ function TestRepoDetailCaseInner({
   const [description, setDescription] = useState(testCase.description ?? "");
   const [preconditions, setPreconditions] = useState(testCase.preconditions ?? "");
   const [postconditions, setPostconditions] = useState(testCase.postconditions ?? "");
-  const [priority, setPriority] = useState(testCase.priority);
-  const [severity, setSeverity] = useState(testCase.severity);
-  const [type, setType] = useState(testCase.type);
-  const [automationStatus, setAutomationStatus] = useState(testCase.automationStatus);
-  const [status, setStatus] = useState(testCase.status);
-  const [behavior, setBehavior] = useState(testCase.behavior);
-  const [layer, setLayer] = useState(testCase.layer);
-  const [isFlaky, setIsFlaky] = useState(testCase.isFlaky);
-  const [assigneeId, setAssigneeId] = useState(testCase.assigneeId ?? "unassigned");
+  const [properties, setProperties] = useState<TestCasePropertyValues>({
+    status: testCase.status,
+    priority: testCase.priority,
+    severity: testCase.severity,
+    type: testCase.type,
+    automationStatus: testCase.automationStatus,
+    behavior: testCase.behavior,
+    layer: testCase.layer,
+    isFlaky: testCase.isFlaky,
+    assigneeId: testCase.assigneeId ?? "unassigned",
+  });
   const [showProperties, setShowProperties] = useState(true);
 
   // Team members for assignee selector
@@ -202,6 +192,18 @@ function TestRepoDetailCaseInner({
     [testCase.id, projectId, router],
   );
 
+  // Property change handler that auto-saves
+  const handlePropertyChange = useCallback(
+    (field: string, value: string | boolean | null) => {
+      setProperties((prev) => ({
+        ...prev,
+        [field]: field === "assigneeId" ? (value ?? "unassigned") : value,
+      }));
+      saveField(field, value);
+    },
+    [saveField],
+  );
+
   // Step auto-save callbacks
   const handleStepSave = useCallback(
     async (step: TestStep) => {
@@ -306,7 +308,7 @@ function TestRepoDetailCaseInner({
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={() => saveField("title", title.trim())}
                 placeholder="Test case title"
-                className="h-auto flex-1 border-0 bg-transparent px-0 text-[6rem] leading-none font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 dark:bg-transparent"
+                className="h-auto flex-1 border-0 bg-transparent px-0 text-4xl md:text-4xl leading-none font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 dark:bg-transparent"
               />
               {saveState !== "idle" && (
                 <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -395,231 +397,11 @@ function TestRepoDetailCaseInner({
 
       {/* Right sidebar - Properties */}
       {showProperties && (
-      <div className="w-80 shrink-0 overflow-y-auto bg-card px-6 py-2">
-        <div className="space-y-6">
-          <div>
-            <div className="mb-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Properties
-              </h3>
-            </div>
-
-            <div>
-              {/* Status */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Status</span>
-                <Select
-                  value={status}
-                  onValueChange={(val) => {
-                    setStatus(val);
-                    saveField("status", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="deprecated">Deprecated</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Priority */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Priority</span>
-                <Select
-                  value={priority}
-                  onValueChange={(val) => {
-                    setPriority(val);
-                    saveField("priority", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Severity */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Severity</span>
-                <Select
-                  value={severity}
-                  onValueChange={(val) => {
-                    setSeverity(val);
-                    saveField("severity", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="blocker">Blocker</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                    <SelectItem value="major">Major</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="minor">Minor</SelectItem>
-                    <SelectItem value="trivial">Trivial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Type */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Type</span>
-                <Select
-                  value={type}
-                  onValueChange={(val) => {
-                    setType(val);
-                    saveField("type", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="functional">Functional</SelectItem>
-                    <SelectItem value="smoke">Smoke</SelectItem>
-                    <SelectItem value="regression">Regression</SelectItem>
-                    <SelectItem value="security">Security</SelectItem>
-                    <SelectItem value="usability">Usability</SelectItem>
-                    <SelectItem value="performance">Performance</SelectItem>
-                    <SelectItem value="acceptance">Acceptance</SelectItem>
-                    <SelectItem value="compatibility">Compatibility</SelectItem>
-                    <SelectItem value="integration">Integration</SelectItem>
-                    <SelectItem value="exploratory">Exploratory</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Automation Status */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Automation</span>
-                <Select
-                  value={automationStatus}
-                  onValueChange={(val) => {
-                    setAutomationStatus(val);
-                    saveField("automationStatus", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_automated">Not automated</SelectItem>
-                    <SelectItem value="automated">Automated</SelectItem>
-                    <SelectItem value="to_be_automated">To be automated</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Behavior */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Behavior</span>
-                <Select
-                  value={behavior}
-                  onValueChange={(val) => {
-                    setBehavior(val);
-                    saveField("behavior", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="positive">Positive</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
-                    <SelectItem value="destructive">Destructive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Layer */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Layer</span>
-                <Select
-                  value={layer}
-                  onValueChange={(val) => {
-                    setLayer(val);
-                    saveField("layer", val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="e2e">E2E</SelectItem>
-                    <SelectItem value="api">API</SelectItem>
-                    <SelectItem value="unit">Unit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Is Flaky */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Flaky</span>
-                <Switch
-                  checked={isFlaky}
-                  onCheckedChange={(checked) => {
-                    setIsFlaky(checked);
-                    saveField("isFlaky", checked);
-                  }}
-                />
-              </div>
-
-              {/* Assignee */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Assignee</span>
-                <Select
-                  value={assigneeId}
-                  onValueChange={(val) => {
-                    setAssigneeId(val);
-                    saveField("assigneeId", val === "unassigned" ? null : val);
-                  }}
-                >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {members.map((m) => (
-                      <SelectItem key={m.userId} value={m.userId}>
-                        <span className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            {m.image && <AvatarImage src={m.image} alt={m.name} />}
-                            <AvatarFallback className="text-[10px]">
-                              {m.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          {m.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
+        <TestCasePropertiesSidebar
+          values={properties}
+          onPropertyChange={handlePropertyChange}
+          members={members}
+        />
       )}
     </div>
   );

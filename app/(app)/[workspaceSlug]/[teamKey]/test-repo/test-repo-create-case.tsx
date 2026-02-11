@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight, Loader2, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useTestRepoStore } from "@/lib/stores/test-repo-store";
 import { TestStepsEditor, type TestStep } from "@/components/test-steps-editor";
+import {
+  TestCasePropertiesSidebar,
+  type TeamMember,
+  type TestCasePropertyValues,
+} from "@/components/test-case-properties-sidebar";
 
 interface TestRepoCreateCaseProps {
   projectId: string;
@@ -45,19 +43,51 @@ export function TestRepoCreateCase({
   const [description, setDescription] = useState("");
   const [preconditions, setPreconditions] = useState("");
   const [postconditions, setPostconditions] = useState("");
-  const [priority, setPriority] = useState("medium");
-  const [severity, setSeverity] = useState("normal");
-  const [type, setType] = useState("functional");
-  const [automationStatus, setAutomationStatus] = useState("not_automated");
-  const [behavior, setBehavior] = useState("not_set");
-  const [layer, setLayer] = useState("not_set");
+  const [properties, setProperties] = useState<TestCasePropertyValues>({
+    status: "draft",
+    priority: "medium",
+    severity: "normal",
+    type: "functional",
+    automationStatus: "not_automated",
+    behavior: "not_set",
+    layer: "not_set",
+    isFlaky: false,
+    assigneeId: "unassigned",
+  });
   const [steps, setSteps] = useState<TestStep[]>([]);
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [showProperties, setShowProperties] = useState(true);
+
+  // Team members for assignee selector
+  const [members, setMembers] = useState<TeamMember[]>([]);
 
   useEffect(() => {
     requestAnimationFrame(() => titleRef.current?.focus());
   }, []);
+
+  // Fetch team members for assignee selector
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`/api/teams/${encodeURIComponent(projectId)}/members?includeImplicit=true`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch members");
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled) {
+          setMembers(data);
+        }
+      })
+      .catch(() => {
+        // Ignore — members won't show in assignee selector
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   // Build breadcrumb from parent context
   const parentSection =
@@ -71,7 +101,17 @@ export function TestRepoCreateCase({
         ? suites.find((s) => s.id === parentSection.suiteId)
         : null;
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handlePropertyChange = useCallback(
+    (field: string, value: string | boolean | null) => {
+      setProperties((prev) => ({
+        ...prev,
+        [field]: field === "assigneeId" ? (value ?? "unassigned") : value,
+      }));
+    },
+    [],
+  );
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -91,12 +131,15 @@ export function TestRepoCreateCase({
           description: description.trim() || null,
           preconditions: preconditions.trim() || null,
           postconditions: postconditions.trim() || null,
-          priority,
-          severity,
-          type,
-          automationStatus,
-          behavior,
-          layer,
+          priority: properties.priority,
+          severity: properties.severity,
+          type: properties.type,
+          automationStatus: properties.automationStatus,
+          status: properties.status,
+          behavior: properties.behavior,
+          layer: properties.layer,
+          isFlaky: properties.isFlaky,
+          assigneeId: properties.assigneeId === "unassigned" ? null : properties.assigneeId,
           sectionId,
           projectId,
         }),
@@ -135,18 +178,47 @@ export function TestRepoCreateCase({
 
   return (
     <div className="flex h-full">
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 pt-3 pb-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="text-sm text-destructive">
-                {error}
-              </div>
+      {/* Left side: breadcrumb + main content */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Breadcrumb bar */}
+        <div className="flex shrink-0 items-center justify-between border-b bg-card px-4 py-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {parentSuite && (
+              <>
+                <span>{parentSuite.name}</span>
+                <ChevronRight className="h-3 w-3" />
+              </>
             )}
+            {parentSection && (
+              <>
+                <span>{parentSection.name}</span>
+                <ChevronRight className="h-3 w-3" />
+              </>
+            )}
+            <span className="font-medium text-foreground">New test case</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowProperties(!showProperties)}
+            className="h-7 w-7 shrink-0 p-0"
+            title={showProperties ? "Hide properties" : "Show properties"}
+          >
+            <PanelRight className="h-4 w-4" />
+          </Button>
+        </div>
 
-            {/* Title - Large, prominent */}
-            <div className="space-y-3">
+        {/* Scrollable main content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-4xl px-6 py-2">
+            <form onSubmit={handleSubmit} className="space-y-1">
+              {error && (
+                <div className="text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+
+              {/* Title - Large, prominent */}
               <Input
                 ref={titleRef}
                 id="tc-title"
@@ -158,201 +230,79 @@ export function TestRepoCreateCase({
                 }}
                 disabled={isPending}
                 required
-                className="border-0 px-0 text-5xl font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
+                className="h-auto border-0 bg-transparent px-0 text-4xl md:text-4xl leading-none font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 dark:bg-transparent"
               />
-            </div>
 
-            {/* Description */}
-            <Textarea
-              id="tc-description"
-              placeholder="Add description..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isPending}
-              rows={6}
-              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-            />
-
-            {/* Preconditions */}
-            <Textarea
-              id="tc-preconditions"
-              placeholder="Add preconditions..."
-              value={preconditions}
-              onChange={(e) => setPreconditions(e.target.value)}
-              disabled={isPending}
-              rows={4}
-              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-            />
-
-            {/* Postconditions */}
-            <Textarea
-              id="tc-postconditions"
-              placeholder="Add postconditions..."
-              value={postconditions}
-              onChange={(e) => setPostconditions(e.target.value)}
-              disabled={isPending}
-              rows={4}
-              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-            />
-
-            {/* Test Steps */}
-            <TestStepsEditor
-              steps={steps}
-              onChange={setSteps}
-              disabled={isPending}
-            />
-
-            {/* Actions - Subtle, bottom placement */}
-            <div className="flex items-center gap-3 pt-8">
-              <Button type="submit" disabled={isPending || !title.trim()} size="sm">
-                {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Create test case
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setCreatingTestCase(null)}
+              {/* Description */}
+              <Textarea
+                id="tc-description"
+                placeholder="Add description..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 disabled={isPending}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
+                rows={8}
+                className="min-h-48 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              />
+
+              {/* Preconditions */}
+              <Textarea
+                id="tc-preconditions"
+                placeholder="Add preconditions..."
+                value={preconditions}
+                onChange={(e) => setPreconditions(e.target.value)}
+                disabled={isPending}
+                rows={1}
+                className="min-h-0 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              />
+
+              {/* Postconditions */}
+              <Textarea
+                id="tc-postconditions"
+                placeholder="Add postconditions..."
+                value={postconditions}
+                onChange={(e) => setPostconditions(e.target.value)}
+                disabled={isPending}
+                rows={1}
+                className="min-h-0 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
+              />
+
+              {/* Test Steps */}
+              <TestStepsEditor
+                steps={steps}
+                onChange={setSteps}
+                disabled={isPending}
+              />
+
+              {/* Actions - Subtle, bottom placement */}
+              <div className="flex items-center gap-3 pt-8">
+                <Button type="submit" disabled={isPending || !title.trim()} size="sm">
+                  {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Create test case
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCreatingTestCase(null)}
+                  disabled={isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
       {/* Right sidebar - Properties */}
-      <div className="w-80 shrink-0 overflow-y-auto border-l bg-card px-6 pt-3 pb-6">
-        <div className="space-y-6">
-          <div>
-            <h3 className="mb-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Properties
-            </h3>
-
-            <div className="divide-y">
-              {/* Priority */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Priority</span>
-                <Select value={priority} onValueChange={setPriority} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Severity */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Severity</span>
-                <Select value={severity} onValueChange={setSeverity} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="blocker">Blocker</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                    <SelectItem value="major">Major</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="minor">Minor</SelectItem>
-                    <SelectItem value="trivial">Trivial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Type */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Type</span>
-                <Select value={type} onValueChange={setType} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="functional">Functional</SelectItem>
-                    <SelectItem value="smoke">Smoke</SelectItem>
-                    <SelectItem value="regression">Regression</SelectItem>
-                    <SelectItem value="security">Security</SelectItem>
-                    <SelectItem value="usability">Usability</SelectItem>
-                    <SelectItem value="performance">Performance</SelectItem>
-                    <SelectItem value="acceptance">Acceptance</SelectItem>
-                    <SelectItem value="compatibility">Compatibility</SelectItem>
-                    <SelectItem value="integration">Integration</SelectItem>
-                    <SelectItem value="exploratory">Exploratory</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Automation Status */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Automation</span>
-                <Select value={automationStatus} onValueChange={setAutomationStatus} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_automated">Not automated</SelectItem>
-                    <SelectItem value="automated">Automated</SelectItem>
-                    <SelectItem value="to_be_automated">To be automated</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Behavior */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Behavior</span>
-                <Select value={behavior} onValueChange={setBehavior} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="positive">Positive</SelectItem>
-                    <SelectItem value="negative">Negative</SelectItem>
-                    <SelectItem value="destructive">Destructive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Layer */}
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">Layer</span>
-                <Select value={layer} onValueChange={setLayer} disabled={isPending}>
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectItem value="not_set">Not set</SelectItem>
-                    <SelectItem value="e2e">E2E</SelectItem>
-                    <SelectItem value="api">API</SelectItem>
-                    <SelectItem value="unit">Unit</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Location */}
-              {(parentSuite || parentSection) && (
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-sm text-muted-foreground">Location</span>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    {parentSuite && <span>{parentSuite.name}</span>}
-                    {parentSuite && parentSection && (
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    )}
-                    {parentSection && <span>{parentSection.name}</span>}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {showProperties && (
+        <TestCasePropertiesSidebar
+          values={properties}
+          onPropertyChange={handlePropertyChange}
+          members={members}
+          disabled={isPending}
+        />
+      )}
     </div>
   );
 }
