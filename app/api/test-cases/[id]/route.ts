@@ -6,7 +6,18 @@ import { verifyProjectAccess } from "@/lib/api-auth";
 import { hasTokenPermission } from "@/lib/token-permissions";
 
 const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
-const VALID_TYPES = ["functional", "smoke", "regression"];
+const VALID_TYPES = [
+  "functional", "smoke", "regression", "security", "usability",
+  "performance", "acceptance", "compatibility", "integration",
+  "exploratory", "other",
+];
+const VALID_SEVERITIES = [
+  "not_set", "blocker", "critical", "major", "normal", "minor", "trivial",
+];
+const VALID_AUTOMATION_STATUSES = ["not_automated", "automated", "to_be_automated"];
+const VALID_STATUSES = ["draft", "active", "deprecated"];
+const VALID_BEHAVIORS = ["not_set", "positive", "negative", "destructive"];
+const VALID_LAYERS = ["not_set", "e2e", "api", "unit"];
 
 export async function PATCH(
   request: NextRequest,
@@ -14,7 +25,10 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { title, sectionId, projectId, description, preconditions, priority, type } = body;
+  const {
+    title, sectionId, projectId, description, preconditions, priority, type,
+    severity, automationStatus, status, behavior, layer, isFlaky, postconditions, assigneeId,
+  } = body;
 
   if (!projectId) {
     return NextResponse.json(
@@ -55,6 +69,41 @@ export async function PATCH(
     );
   }
 
+  if (severity !== undefined && !VALID_SEVERITIES.includes(severity)) {
+    return NextResponse.json(
+      { error: `Severity must be one of: ${VALID_SEVERITIES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (automationStatus !== undefined && !VALID_AUTOMATION_STATUSES.includes(automationStatus)) {
+    return NextResponse.json(
+      { error: `Automation status must be one of: ${VALID_AUTOMATION_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (status !== undefined && !VALID_STATUSES.includes(status)) {
+    return NextResponse.json(
+      { error: `Status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (behavior !== undefined && !VALID_BEHAVIORS.includes(behavior)) {
+    return NextResponse.json(
+      { error: `Behavior must be one of: ${VALID_BEHAVIORS.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (layer !== undefined && !VALID_LAYERS.includes(layer)) {
+    return NextResponse.json(
+      { error: `Layer must be one of: ${VALID_LAYERS.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
   const updates: Record<string, unknown> = {
     updatedBy: authContext.userId,
   };
@@ -62,8 +111,16 @@ export async function PATCH(
   if (sectionId !== undefined) updates.sectionId = sectionId || null;
   if (description !== undefined) updates.description = description?.trim() || null;
   if (preconditions !== undefined) updates.preconditions = preconditions?.trim() || null;
+  if (postconditions !== undefined) updates.postconditions = postconditions?.trim() || null;
   if (priority !== undefined) updates.priority = priority;
   if (type !== undefined) updates.type = type;
+  if (severity !== undefined) updates.severity = severity;
+  if (automationStatus !== undefined) updates.automationStatus = automationStatus;
+  if (status !== undefined) updates.status = status;
+  if (behavior !== undefined) updates.behavior = behavior;
+  if (layer !== undefined) updates.layer = layer;
+  if (isFlaky !== undefined) updates.isFlaky = isFlaky;
+  if (assigneeId !== undefined) updates.assigneeId = assigneeId || null;
 
   const [updated] = await db
     .update(testCase)

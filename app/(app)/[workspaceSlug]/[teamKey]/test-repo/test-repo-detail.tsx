@@ -26,11 +26,19 @@ interface TestCase {
   title: string;
   description: string | null;
   preconditions: string | null;
+  postconditions: string | null;
   type: string;
   priority: string;
+  severity: string;
+  automationStatus: string;
   status: string;
+  behavior: string;
+  layer: string;
+  isFlaky: boolean;
+  assigneeId: string | null;
   templateType: string;
   sectionId: string | null;
+  caseKey: string | null;
 }
 
 interface TestRepoDetailProps {

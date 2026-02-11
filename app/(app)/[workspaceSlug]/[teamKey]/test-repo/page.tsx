@@ -10,10 +10,16 @@ import { TestRepoContent } from "./test-repo-content";
 
 export default async function TestRepoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workspaceSlug: string; teamKey: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { workspaceSlug, teamKey } = await params;
+  const sp = await searchParams;
+  const initialCaseKey = typeof sp.case === "string" ? sp.case : null;
+  const initialSuiteId = typeof sp.suite === "string" ? sp.suite : null;
+  const initialSectionId = typeof sp.section === "string" ? sp.section : null;
 
   const projectInfo = await getProjectByTeamKey(workspaceSlug, teamKey);
   if (!projectInfo) notFound();
@@ -33,6 +39,9 @@ export default async function TestRepoPage({
       suites={suites}
       sections={sections}
       testCases={testCases}
+      initialCaseKey={initialCaseKey}
+      initialSuiteId={initialSuiteId}
+      initialSectionId={initialSectionId}
     />
   );
 }

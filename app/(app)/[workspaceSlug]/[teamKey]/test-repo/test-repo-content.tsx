@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useTestRepoStore,
   useTestRepoReady,
@@ -32,19 +33,30 @@ interface TestCase {
   title: string;
   description: string | null;
   preconditions: string | null;
+  postconditions: string | null;
   type: string;
   priority: string;
+  severity: string;
+  automationStatus: string;
   status: string;
+  behavior: string;
+  layer: string;
+  isFlaky: boolean;
+  assigneeId: string | null;
   templateType: string;
   sectionId: string | null;
+  caseKey: string | null;
 }
 
-interface TestRepoContentProps {
+export interface TestRepoContentProps {
   projectId: string;
   treeData: TreeNode[];
   suites: Suite[];
   sections: Section[];
   testCases: TestCase[];
+  initialCaseKey: string | null;
+  initialSuiteId: string | null;
+  initialSectionId: string | null;
 }
 
 const MIN_TREE_WIDTH = 200;
@@ -56,12 +68,79 @@ export function TestRepoContent({
   suites,
   sections,
   testCases,
+  initialCaseKey,
+  initialSuiteId,
+  initialSectionId,
 }: TestRepoContentProps) {
   const treePanelWidth = useTestRepoStore((s) => s.treePanelWidth);
   const setTreePanelWidth = useTestRepoStore((s) => s.setTreePanelWidth);
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
+  const selectNode = useTestRepoStore((s) => s.selectNode);
   const creatingTestCase = useTestRepoStore((s) => s.creatingTestCase);
   const ready = useTestRepoReady();
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const initializedRef = useRef(false);
+
+  // On mount: resolve initial selection from URL search params
+  useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    if (initialCaseKey) {
+      const tc = testCases.find((t) => t.caseKey === initialCaseKey);
+      if (tc) {
+        selectNode({ id: tc.id, type: "testCase" });
+        return;
+      }
+    }
+    if (initialSuiteId) {
+      const s = suites.find((s) => s.id === initialSuiteId);
+      if (s) {
+        selectNode({ id: s.id, type: "suite" });
+        return;
+      }
+    }
+    if (initialSectionId) {
+      const sec = sections.find((s) => s.id === initialSectionId);
+      if (sec) {
+        selectNode({ id: sec.id, type: "section" });
+        return;
+      }
+    }
+  }, [initialCaseKey, initialSuiteId, initialSectionId, testCases, suites, sections, selectNode]);
+
+  // Sync selection → URL
+  useEffect(() => {
+    if (!ready) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    // Clear old params
+    params.delete("case");
+    params.delete("suite");
+    params.delete("section");
+
+    if (selectedNode) {
+      if (selectedNode.type === "testCase") {
+        const tc = testCases.find((t) => t.id === selectedNode.id);
+        if (tc?.caseKey) {
+          params.set("case", tc.caseKey);
+        }
+      } else if (selectedNode.type === "suite") {
+        params.set("suite", selectedNode.id);
+      } else if (selectedNode.type === "section") {
+        params.set("section", selectedNode.id);
+      }
+    }
+
+    const newSearch = params.toString();
+    const currentSearch = searchParams.toString();
+    if (newSearch !== currentSearch) {
+      router.replace(`${pathname}${newSearch ? `?${newSearch}` : ""}`, { scroll: false });
+    }
+  }, [selectedNode, ready, testCases, pathname, searchParams, router]);
 
   const isResizing = useRef(false);
   const startX = useRef(0);

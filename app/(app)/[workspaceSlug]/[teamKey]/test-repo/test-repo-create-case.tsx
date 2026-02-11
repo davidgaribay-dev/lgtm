@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -45,8 +44,13 @@ export function TestRepoCreateCase({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [preconditions, setPreconditions] = useState("");
+  const [postconditions, setPostconditions] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [severity, setSeverity] = useState("normal");
   const [type, setType] = useState("functional");
+  const [automationStatus, setAutomationStatus] = useState("not_automated");
+  const [behavior, setBehavior] = useState("not_set");
+  const [layer, setLayer] = useState("not_set");
   const [steps, setSteps] = useState<TestStep[]>([]);
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -86,8 +90,13 @@ export function TestRepoCreateCase({
           title: title.trim(),
           description: description.trim() || null,
           preconditions: preconditions.trim() || null,
+          postconditions: postconditions.trim() || null,
           priority,
+          severity,
           type,
+          automationStatus,
+          behavior,
+          layer,
           sectionId,
           projectId,
         }),
@@ -179,6 +188,19 @@ export function TestRepoCreateCase({
               />
             </div>
 
+            {/* Postconditions */}
+            <div className="space-y-3">
+              <Textarea
+                id="tc-postconditions"
+                placeholder="Add postconditions..."
+                value={postconditions}
+                onChange={(e) => setPostconditions(e.target.value)}
+                disabled={isPending}
+                rows={4}
+                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+              />
+            </div>
+
             {/* Test Steps */}
             <TestStepsEditor
               steps={steps}
@@ -207,22 +229,22 @@ export function TestRepoCreateCase({
       </div>
 
       {/* Right sidebar - Properties */}
-      <div className="w-80 border-l bg-card px-6 pt-3 pb-6">
+      <div className="w-80 shrink-0 overflow-y-auto border-l bg-card px-6 pt-3 pb-6">
         <div className="space-y-6">
           <div>
             <h3 className="mb-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Properties
             </h3>
 
-            <div className="space-y-4">
+            <div className="divide-y">
               {/* Priority */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Priority</Label>
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Priority</span>
                 <Select value={priority} onValueChange={setPriority} disabled={isPending}>
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="end">
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
@@ -231,29 +253,99 @@ export function TestRepoCreateCase({
                 </Select>
               </div>
 
-              {/* Type */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Type</Label>
-                <Select value={type} onValueChange={setType} disabled={isPending}>
-                  <SelectTrigger className="h-9">
+              {/* Severity */}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Severity</span>
+                <Select value={severity} onValueChange={setSeverity} disabled={isPending}>
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent align="end">
+                    <SelectItem value="not_set">Not set</SelectItem>
+                    <SelectItem value="blocker">Blocker</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="major">Major</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="minor">Minor</SelectItem>
+                    <SelectItem value="trivial">Trivial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Type */}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Type</span>
+                <Select value={type} onValueChange={setType} disabled={isPending}>
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
                     <SelectItem value="functional">Functional</SelectItem>
                     <SelectItem value="smoke">Smoke</SelectItem>
                     <SelectItem value="regression">Regression</SelectItem>
                     <SelectItem value="security">Security</SelectItem>
                     <SelectItem value="usability">Usability</SelectItem>
                     <SelectItem value="performance">Performance</SelectItem>
+                    <SelectItem value="acceptance">Acceptance</SelectItem>
+                    <SelectItem value="compatibility">Compatibility</SelectItem>
+                    <SelectItem value="integration">Integration</SelectItem>
+                    <SelectItem value="exploratory">Exploratory</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Automation Status */}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Automation</span>
+                <Select value={automationStatus} onValueChange={setAutomationStatus} disabled={isPending}>
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="not_automated">Not automated</SelectItem>
+                    <SelectItem value="automated">Automated</SelectItem>
+                    <SelectItem value="to_be_automated">To be automated</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Behavior */}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Behavior</span>
+                <Select value={behavior} onValueChange={setBehavior} disabled={isPending}>
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="not_set">Not set</SelectItem>
+                    <SelectItem value="positive">Positive</SelectItem>
+                    <SelectItem value="negative">Negative</SelectItem>
+                    <SelectItem value="destructive">Destructive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Layer */}
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Layer</span>
+                <Select value={layer} onValueChange={setLayer} disabled={isPending}>
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    <SelectItem value="not_set">Not set</SelectItem>
+                    <SelectItem value="e2e">E2E</SelectItem>
+                    <SelectItem value="api">API</SelectItem>
+                    <SelectItem value="unit">Unit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Location */}
               {(parentSuite || parentSection) && (
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Location</Label>
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-sm text-muted-foreground">Location</span>
                   <div className="flex items-center gap-1.5 text-sm">
                     {parentSuite && <span>{parentSuite.name}</span>}
                     {parentSuite && parentSection && (

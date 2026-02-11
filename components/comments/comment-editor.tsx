@@ -159,7 +159,7 @@ export function CommentEditor({
   // Inline variant: compact row with avatar + input + send
   if (variant === "inline") {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-border/50 px-2 py-1">
+      <div className="flex items-center gap-2 px-2 py-1">
         <Avatar size="sm" className="!size-5 shrink-0">
           {currentUserImage && (
             <AvatarImage src={currentUserImage} alt={currentUserName} />
@@ -175,7 +175,7 @@ export function CommentEditor({
             placeholder={placeholder}
             autoFocus={autoFocus}
             rows={1}
-            className="min-h-0 resize-none border-0 bg-transparent px-0 py-1 text-sm shadow-none focus-visible:ring-0"
+            className="min-h-0 resize-none border-0 bg-transparent px-0 py-1 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
           />
           {showMentions && (
             <MentionAutocomplete
@@ -212,7 +212,7 @@ export function CommentEditor({
           placeholder={placeholder}
           autoFocus={autoFocus}
           rows={3}
-          className="resize-none border-0 shadow-none focus-visible:ring-0"
+          className="resize-none border-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
         />
         {showMentions && (
           <div className="relative">

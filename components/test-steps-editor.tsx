@@ -143,7 +143,7 @@ export function TestStepsEditor({
       ) : (
         <div className="rounded-lg border bg-card">
           {/* Table header */}
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-3 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-3 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
             <div></div>
             <div>Action</div>
             <div>Test Data</div>
@@ -171,7 +171,7 @@ export function TestStepsEditor({
               {/* Action */}
               <div>
                 <Textarea
-                  placeholder="e.g., Navigate to login page"
+                  placeholder=""
                   value={step.action}
                   onChange={(e) =>
                     handleUpdateStep(index, "action", e.target.value)
@@ -179,14 +179,14 @@ export function TestStepsEditor({
                   onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
-                  className="min-h-[60px] resize-none text-sm"
+                  className="min-h-[60px] resize-none border-0 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
                 />
               </div>
 
               {/* Test Data */}
               <div>
                 <Textarea
-                  placeholder="e.g., username@example.com"
+                  placeholder=""
                   value={step.data || ""}
                   onChange={(e) =>
                     handleUpdateStep(index, "data", e.target.value)
@@ -194,14 +194,14 @@ export function TestStepsEditor({
                   onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
-                  className="min-h-[60px] resize-none text-sm"
+                  className="min-h-[60px] resize-none border-0 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
                 />
               </div>
 
               {/* Expected Result */}
               <div>
                 <Textarea
-                  placeholder="e.g., Login page displayed"
+                  placeholder=""
                   value={step.expectedResult || ""}
                   onChange={(e) =>
                     handleUpdateStep(index, "expectedResult", e.target.value)
@@ -209,7 +209,7 @@ export function TestStepsEditor({
                   onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
-                  className="min-h-[60px] resize-none text-sm"
+                  className="min-h-[60px] resize-none border-0 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
                 />
               </div>
 

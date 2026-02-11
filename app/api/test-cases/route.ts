@@ -9,7 +9,18 @@ import {
 } from "@/lib/token-permissions";
 
 const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
-const VALID_TYPES = ["functional", "smoke", "regression"];
+const VALID_TYPES = [
+  "functional", "smoke", "regression", "security", "usability",
+  "performance", "acceptance", "compatibility", "integration",
+  "exploratory", "other",
+];
+const VALID_SEVERITIES = [
+  "not_set", "blocker", "critical", "major", "normal", "minor", "trivial",
+];
+const VALID_AUTOMATION_STATUSES = ["not_automated", "automated", "to_be_automated"];
+const VALID_STATUSES = ["draft", "active", "deprecated"];
+const VALID_BEHAVIORS = ["not_set", "positive", "negative", "destructive"];
+const VALID_LAYERS = ["not_set", "e2e", "api", "unit"];
 
 export async function POST(request: NextRequest) {
   const authContext = await getAuthContext(request);
@@ -19,7 +30,10 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { title, projectId, sectionId, description, preconditions, priority, type } = body;
+  const {
+    title, projectId, sectionId, description, preconditions, priority, type,
+    severity, automationStatus, status, behavior, layer, isFlaky, postconditions, assigneeId,
+  } = body;
 
   if (!title?.trim() || !projectId) {
     return NextResponse.json(
@@ -38,6 +52,41 @@ export async function POST(request: NextRequest) {
   if (type && !VALID_TYPES.includes(type)) {
     return NextResponse.json(
       { error: `Type must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (severity && !VALID_SEVERITIES.includes(severity)) {
+    return NextResponse.json(
+      { error: `Severity must be one of: ${VALID_SEVERITIES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (automationStatus && !VALID_AUTOMATION_STATUSES.includes(automationStatus)) {
+    return NextResponse.json(
+      { error: `Automation status must be one of: ${VALID_AUTOMATION_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (status && !VALID_STATUSES.includes(status)) {
+    return NextResponse.json(
+      { error: `Status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (behavior && !VALID_BEHAVIORS.includes(behavior)) {
+    return NextResponse.json(
+      { error: `Behavior must be one of: ${VALID_BEHAVIORS.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (layer && !VALID_LAYERS.includes(layer)) {
+    return NextResponse.json(
+      { error: `Layer must be one of: ${VALID_LAYERS.join(", ")}` },
       { status: 400 },
     );
   }
@@ -125,8 +174,16 @@ export async function POST(request: NextRequest) {
       sectionId: sectionId || null,
       description: description?.trim() || null,
       preconditions: preconditions?.trim() || null,
+      postconditions: postconditions?.trim() || null,
       priority: priority || "medium",
       type: type || "functional",
+      severity: severity || "normal",
+      automationStatus: automationStatus || "not_automated",
+      status: status || "draft",
+      behavior: behavior || "not_set",
+      layer: layer || "not_set",
+      isFlaky: isFlaky ?? false,
+      assigneeId: assigneeId || null,
       caseNumber,
       caseKey,
       createdBy: authContext.userId,
