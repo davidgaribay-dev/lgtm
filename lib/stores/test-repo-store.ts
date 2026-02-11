@@ -21,6 +21,10 @@ interface TestRepoState {
   setTreePanelWidth: (width: number) => void;
   creatingTestCase: CreatingTestCase | null;
   setCreatingTestCase: (val: CreatingTestCase | null) => void;
+  /** Per-project open/closed state for tree nodes: { projectId: { nodeId: true } } */
+  openNodes: Record<string, Record<string, boolean>>;
+  toggleNode: (projectId: string, nodeId: string) => void;
+  setNodeOpen: (projectId: string, nodeId: string, isOpen: boolean) => void;
 }
 
 export const useTestRepoStore = create<TestRepoState>()(
@@ -32,11 +36,41 @@ export const useTestRepoStore = create<TestRepoState>()(
       setTreePanelWidth: (width) => set({ treePanelWidth: width }),
       creatingTestCase: null,
       setCreatingTestCase: (val) => set({ creatingTestCase: val }),
+      openNodes: {},
+      toggleNode: (projectId, nodeId) =>
+        set((state) => {
+          const project = state.openNodes[projectId] ?? {};
+          const isOpen = project[nodeId];
+          const { [nodeId]: _, ...rest } = project;
+          return {
+            openNodes: {
+              ...state.openNodes,
+              [projectId]: isOpen ? rest : { ...project, [nodeId]: true },
+            },
+          };
+        }),
+      setNodeOpen: (projectId, nodeId, isOpen) =>
+        set((state) => {
+          const project = state.openNodes[projectId] ?? {};
+          if (isOpen) {
+            return {
+              openNodes: {
+                ...state.openNodes,
+                [projectId]: { ...project, [nodeId]: true },
+              },
+            };
+          }
+          const { [nodeId]: _, ...rest } = project;
+          return {
+            openNodes: { ...state.openNodes, [projectId]: rest },
+          };
+        }),
     }),
     {
       name: "test-repo",
       partialize: (state) => ({
         treePanelWidth: state.treePanelWidth,
+        openNodes: state.openNodes,
       }),
     },
   ),

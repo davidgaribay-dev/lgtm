@@ -154,7 +154,7 @@ function TestRepoDetailCaseInner({
   useEffect(() => {
     let cancelled = false;
 
-    fetch(`/api/teams/${encodeURIComponent(projectId)}/members`)
+    fetch(`/api/teams/${encodeURIComponent(projectId)}/members?includeImplicit=true`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch members");
         return res.json();
@@ -248,29 +248,65 @@ function TestRepoDetailCaseInner({
     [],
   );
 
+  const handleStepsReorder = useCallback(
+    async (stepIds: string[]) => {
+      await fetch(`/api/test-cases/${testCase.id}/steps/reorder`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepIds }),
+      });
+    },
+    [testCase.id],
+  );
+
   const loadingSteps = steps === null;
 
   return (
     <div className="flex h-full">
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-6 py-2">
-          <div className="space-y-1">
-            {/* Case key badge */}
-            {testCase.caseKey && (
-              <span className="inline-block text-xs font-medium text-muted-foreground">
-                {testCase.caseKey}
-              </span>
+      {/* Left side: breadcrumb + main content */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Breadcrumb bar */}
+        <div className="flex shrink-0 items-center justify-between border-b bg-card px-4 py-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {suite && (
+              <>
+                <span>{suite.name}</span>
+                <ChevronRight className="h-3 w-3" />
+              </>
             )}
+            {section && (
+              <>
+                <span>{section.name}</span>
+                <ChevronRight className="h-3 w-3" />
+              </>
+            )}
+            {testCase.caseKey && (
+              <span className="font-medium text-foreground">{testCase.caseKey}</span>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowProperties(!showProperties)}
+            className="h-7 w-7 shrink-0 p-0"
+            title={showProperties ? "Hide properties" : "Show properties"}
+          >
+            <PanelRight className="h-4 w-4" />
+          </Button>
+        </div>
 
-            {/* Title row with save indicator + toggle */}
+        {/* Scrollable main content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-4xl px-6 py-2">
+            <div className="space-y-1">
+            {/* Title row with save indicator */}
             <div className="flex items-center gap-2">
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={() => saveField("title", title.trim())}
                 placeholder="Test case title"
-                className="h-auto flex-1 border-0 px-0 text-5xl font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
+                className="h-auto flex-1 border-0 bg-transparent px-0 text-[6rem] leading-none font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0 dark:bg-transparent"
               />
               {saveState !== "idle" && (
                 <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -288,17 +324,6 @@ function TestRepoDetailCaseInner({
                   )}
                 </span>
               )}
-              {!showProperties && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowProperties(true)}
-                  className="h-7 w-7 shrink-0 p-0"
-                  title="Show properties"
-                >
-                  <PanelRight className="h-4 w-4" />
-                </Button>
-              )}
             </div>
 
             {/* Description */}
@@ -307,8 +332,8 @@ function TestRepoDetailCaseInner({
               onChange={(e) => setDescription(e.target.value)}
               onBlur={() => saveField("description", description)}
               placeholder="Add description..."
-              rows={1}
-              className="min-h-0 resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+              rows={8}
+              className="min-h-48 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
 
             {/* Preconditions */}
@@ -318,7 +343,7 @@ function TestRepoDetailCaseInner({
               onBlur={() => saveField("preconditions", preconditions)}
               placeholder="Add preconditions..."
               rows={1}
-              className="min-h-0 resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+              className="min-h-0 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
 
             {/* Postconditions */}
@@ -328,7 +353,7 @@ function TestRepoDetailCaseInner({
               onBlur={() => saveField("postconditions", postconditions)}
               placeholder="Add postconditions..."
               rows={1}
-              className="min-h-0 resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+              className="min-h-0 resize-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
 
             {/* Test Steps */}
@@ -344,6 +369,7 @@ function TestRepoDetailCaseInner({
                 onStepSave={handleStepSave}
                 onStepCreate={handleStepCreate}
                 onStepDelete={handleStepDelete}
+                onStepsReorder={handleStepsReorder}
               />
             )}
 
@@ -365,28 +391,20 @@ function TestRepoDetailCaseInner({
           </div>
         </div>
       </div>
+      </div>
 
       {/* Right sidebar - Properties */}
       {showProperties && (
-      <div className="w-80 shrink-0 overflow-y-auto border-l bg-card px-6 py-2">
+      <div className="w-80 shrink-0 overflow-y-auto bg-card px-6 py-2">
         <div className="space-y-6">
           <div>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Properties
               </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowProperties(false)}
-                className="h-7 w-7 p-0"
-                title="Hide properties"
-              >
-                <PanelRight className="h-4 w-4" />
-              </Button>
             </div>
 
-            <div className="divide-y">
+            <div>
               {/* Status */}
               <div className="flex items-center justify-between py-2.5">
                 <span className="text-sm text-muted-foreground">Status</span>
@@ -397,7 +415,7 @@ function TestRepoDetailCaseInner({
                     saveField("status", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -418,7 +436,7 @@ function TestRepoDetailCaseInner({
                     saveField("priority", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -440,7 +458,7 @@ function TestRepoDetailCaseInner({
                     saveField("severity", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -465,7 +483,7 @@ function TestRepoDetailCaseInner({
                     saveField("type", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -494,7 +512,7 @@ function TestRepoDetailCaseInner({
                     saveField("automationStatus", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -515,7 +533,7 @@ function TestRepoDetailCaseInner({
                     saveField("behavior", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -537,7 +555,7 @@ function TestRepoDetailCaseInner({
                     saveField("layer", val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -571,7 +589,7 @@ function TestRepoDetailCaseInner({
                     saveField("assigneeId", val === "unassigned" ? null : val);
                   }}
                 >
-                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none hover:bg-muted focus:ring-0">
+                  <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>
                   <SelectContent align="end">
@@ -598,19 +616,6 @@ function TestRepoDetailCaseInner({
                 </Select>
               </div>
 
-              {/* Location */}
-              {(suite || section) && (
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-sm text-muted-foreground">Location</span>
-                  <div className="flex items-center gap-1.5 text-sm">
-                    {suite && <span>{suite.name}</span>}
-                    {suite && section && (
-                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    )}
-                    {section && <span>{section.name}</span>}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

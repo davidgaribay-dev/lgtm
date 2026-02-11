@@ -189,10 +189,12 @@ export function TestRepoContent({
         style={{ width: ready ? treePanelWidth : 280 }}
         className="shrink-0 overflow-hidden border-r bg-card"
       >
-        <TestRepoTree
-          data={treeData}
-          projectId={projectId}
-        />
+        {ready && (
+          <TestRepoTree
+            data={treeData}
+            projectId={projectId}
+          />
+        )}
       </div>
 
       {/* Resize handle */}

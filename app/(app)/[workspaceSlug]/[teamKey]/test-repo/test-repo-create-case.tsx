@@ -163,43 +163,37 @@ export function TestRepoCreateCase({
             </div>
 
             {/* Description */}
-            <div className="space-y-3">
-              <Textarea
-                id="tc-description"
-                placeholder="Add description..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={isPending}
-                rows={6}
-                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-              />
-            </div>
+            <Textarea
+              id="tc-description"
+              placeholder="Add description..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending}
+              rows={6}
+              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+            />
 
             {/* Preconditions */}
-            <div className="space-y-3">
-              <Textarea
-                id="tc-preconditions"
-                placeholder="Add preconditions..."
-                value={preconditions}
-                onChange={(e) => setPreconditions(e.target.value)}
-                disabled={isPending}
-                rows={4}
-                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-              />
-            </div>
+            <Textarea
+              id="tc-preconditions"
+              placeholder="Add preconditions..."
+              value={preconditions}
+              onChange={(e) => setPreconditions(e.target.value)}
+              disabled={isPending}
+              rows={4}
+              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+            />
 
             {/* Postconditions */}
-            <div className="space-y-3">
-              <Textarea
-                id="tc-postconditions"
-                placeholder="Add postconditions..."
-                value={postconditions}
-                onChange={(e) => setPostconditions(e.target.value)}
-                disabled={isPending}
-                rows={4}
-                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
-              />
-            </div>
+            <Textarea
+              id="tc-postconditions"
+              placeholder="Add postconditions..."
+              value={postconditions}
+              onChange={(e) => setPostconditions(e.target.value)}
+              disabled={isPending}
+              rows={4}
+              className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
+            />
 
             {/* Test Steps */}
             <TestStepsEditor

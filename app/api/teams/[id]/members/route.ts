@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
@@ -46,7 +46,7 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Fetch team members with user details
+  // Fetch explicit team members with user details
   const members = await db
     .select({
       memberId: projectMember.id,
@@ -63,6 +63,37 @@ export async function GET(
       and(eq(projectMember.projectId, id), isNull(projectMember.deletedAt)),
     )
     .orderBy(desc(projectMember.createdAt));
+
+  // Optionally include org admins/owners who have implicit team access
+  const includeImplicit = request.nextUrl.searchParams.get("includeImplicit") === "true";
+  if (includeImplicit) {
+    const explicitUserIds = new Set(members.map((m) => m.userId));
+
+    const orgAdmins = await db
+      .select({
+        memberId: member.id,
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: member.role,
+        joinedAt: member.createdAt,
+      })
+      .from(member)
+      .innerJoin(user, eq(member.userId, user.id))
+      .where(
+        and(
+          eq(member.organizationId, team.organizationId),
+          sql`${member.role} IN ('admin', 'owner')`,
+        ),
+      );
+
+    for (const admin of orgAdmins) {
+      if (!explicitUserIds.has(admin.userId)) {
+        members.push(admin);
+      }
+    }
+  }
 
   return NextResponse.json(members);
 }

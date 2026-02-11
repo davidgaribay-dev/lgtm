@@ -93,7 +93,15 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
   const selectNode = useTestRepoStore((s) => s.selectNode);
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
   const setCreatingTestCase = useTestRepoStore((s) => s.setCreatingTestCase);
+  const toggleNode = useTestRepoStore((s) => s.toggleNode);
+  const setNodeOpen = useTestRepoStore((s) => s.setNodeOpen);
   const router = useRouter();
+
+  // Capture initial open state once on mount — must be stable to avoid
+  // react-arborist's useMemo(...Object.values(treeProps)) re-firing on every toggle.
+  const initialOpenStateRef = useRef(
+    useTestRepoStore.getState().openNodes[projectId] ?? {},
+  );
 
   const treeRef = useRef<TreeApi<TreeNode> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,9 +146,18 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       const parentNode = treeRef.current.get(creatingFolder.parentId);
       if (parentNode && !parentNode.isOpen) {
         parentNode.open();
+        setNodeOpen(projectId, creatingFolder.parentId, true);
       }
     }
-  }, [creatingFolder]);
+  }, [creatingFolder, projectId, setNodeOpen]);
+
+  // Track tree node toggle in Zustand for persistence
+  const handleToggle = useCallback(
+    (id: string) => {
+      toggleNode(projectId, id);
+    },
+    [projectId, toggleNode],
+  );
 
   const handleSelect = useCallback(
     (nodes: { id: string; data: TreeNode }[]) => {
@@ -434,6 +451,8 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
             rowHeight={32}
             indent={16}
             openByDefault={false}
+            initialOpenState={initialOpenStateRef.current}
+            onToggle={handleToggle}
             selection={selectedNode?.id}
             onSelect={handleSelect}
             onMove={handleMove}
