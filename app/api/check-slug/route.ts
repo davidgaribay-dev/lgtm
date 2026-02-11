@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const slug = request.nextUrl.searchParams.get("slug");
 
-  if (!slug || slug.length < 2) {
+  if (!slug || slug.length < 2 || !/^[a-z0-9][a-z0-9-]*$/.test(slug)) {
     return NextResponse.json({ available: false });
   }
 

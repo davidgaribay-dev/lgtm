@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { MIN_PASSWORD_LENGTH } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,8 +48,8 @@ function PasswordSection() {
     setError("");
     setSaved(false);
 
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`New password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
 
@@ -124,11 +125,11 @@ function PasswordSection() {
               }}
               disabled={isPending}
               required
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
             />
             <p className="text-xs text-muted-foreground">
-              Must be at least 8 characters.
+              Must be at least {MIN_PASSWORD_LENGTH} characters.
             </p>
           </div>
 
@@ -143,7 +144,7 @@ function PasswordSection() {
               }}
               disabled={isPending}
               required
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
               autoComplete="new-password"
             />
           </div>

@@ -131,14 +131,51 @@ export async function POST(request: NextRequest) {
     approvedAt = new Date();
   }
 
-  // Generate and hash token (only for approved tokens)
+  // Validate project scopes BEFORE creating token to prevent orphaned records
+  let validatedProjectIds: string[] = [];
+  if (scopeType !== "organization" && projectIds && projectIds.length > 0) {
+    const validProjects = await db
+      .select({ id: project.id })
+      .from(project)
+      .where(
+        and(
+          eq(project.organizationId, organizationId),
+          inArray(project.id, projectIds),
+          isNull(project.deletedAt),
+        ),
+      );
+
+    if (validProjects.length !== projectIds.length) {
+      const validIds = validProjects.map((p) => p.id);
+      const invalidIds = projectIds.filter((id) => !validIds.includes(id));
+      return NextResponse.json(
+        {
+          error: "Invalid project IDs",
+          invalidProjects: invalidIds,
+        },
+        { status: 400 },
+      );
+    }
+    validatedProjectIds = projectIds;
+  }
+
+  // Generate and hash token
   const { token, prefix } = generateToken();
-  const tokenHash = await hashToken(token);
+  const tokenHash = hashToken(token);
 
-  // Parse expiration
-  const expirationDate = expiresAt ? new Date(expiresAt) : null;
+  // Parse and validate expiration
+  let expirationDate: Date | null = null;
+  if (expiresAt) {
+    expirationDate = new Date(expiresAt);
+    if (isNaN(expirationDate.getTime())) {
+      return NextResponse.json(
+        { error: "Invalid expiration date" },
+        { status: 400 },
+      );
+    }
+  }
 
-  // Create token record
+  // Create token record (all validation has passed)
   const [createdToken] = await db
     .insert(apiToken)
     .values({
@@ -168,34 +205,10 @@ export async function POST(request: NextRequest) {
     })),
   );
 
-  // Insert project scopes (if provided and not organization scope)
-  if (scopeType !== "organization" && projectIds && projectIds.length > 0) {
-    // Validate that all projectIds belong to this organization
-    const validProjects = await db
-      .select({ id: project.id })
-      .from(project)
-      .where(
-        and(
-          eq(project.organizationId, organizationId),
-          inArray(project.id, projectIds),
-          isNull(project.deletedAt),
-        ),
-      );
-
-    if (validProjects.length !== projectIds.length) {
-      const validIds = validProjects.map((p) => p.id);
-      const invalidIds = projectIds.filter((id) => !validIds.includes(id));
-      return NextResponse.json(
-        {
-          error: "Invalid project IDs",
-          invalidProjects: invalidIds,
-        },
-        { status: 400 },
-      );
-    }
-
+  // Insert validated project scopes
+  if (validatedProjectIds.length > 0) {
     await db.insert(apiTokenProjectScope).values(
-      projectIds.map((projectId) => ({
+      validatedProjectIds.map((projectId) => ({
         tokenId: createdToken.id,
         projectId,
       })),
@@ -203,7 +216,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Return token (ONLY time it's shown in plaintext for approved tokens)
-  const response: any = {
+  const responseData: any = {
     id: createdToken.id,
     name: createdToken.name,
     prefix: createdToken.tokenPrefix,
@@ -215,12 +228,15 @@ export async function POST(request: NextRequest) {
 
   // Only include token for approved tokens
   if (scopeStatus === "approved") {
-    response.token = token; // ⚠️ ONLY SHOWN ONCE
+    responseData.token = token; // Only shown once
   } else {
-    response.requiresApproval = true;
+    responseData.requiresApproval = true;
   }
 
-  return NextResponse.json(response, { status: 201 });
+  const response = NextResponse.json(responseData, { status: 201 });
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  return response;
 }
 
 export async function GET(request: NextRequest) {

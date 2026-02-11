@@ -536,8 +536,8 @@ function TreeNodeRenderer({
         className={cn(
           "group flex h-8 items-center gap-1.5 rounded-md px-2 text-sm",
           isSelected
-            ? "bg-foreground text-background"
-            : "text-foreground hover:bg-muted",
+            ? "bg-muted/50 font-medium text-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
         {node.isInternal ? (
@@ -556,7 +556,7 @@ function TreeNodeRenderer({
           <Folder
             className={cn(
               "h-3.5 w-3.5 shrink-0",
-              isSelected ? "text-background/70" : "text-muted-foreground",
+              isSelected ? "text-foreground/70" : "text-muted-foreground",
             )}
           />
         )}
@@ -564,7 +564,7 @@ function TreeNodeRenderer({
           <FileText
             className={cn(
               "h-3.5 w-3.5 shrink-0",
-              isSelected ? "text-background/70" : "text-muted-foreground",
+              isSelected ? "text-foreground/70" : "text-muted-foreground",
             )}
           />
         )}
@@ -591,8 +591,8 @@ function TreeNodeRenderer({
       className={cn(
         "group flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm",
         isSelected
-          ? "bg-foreground text-background"
-          : "text-foreground hover:bg-muted",
+          ? "bg-muted/50 font-medium text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
       onClick={() => (node.isInternal ? node.toggle() : node.select())}
     >
@@ -621,7 +621,7 @@ function TreeNodeRenderer({
         <Folder
           className={cn(
             "h-3.5 w-3.5 shrink-0",
-            isSelected ? "text-background/70" : "text-muted-foreground",
+            isSelected ? "text-foreground/70" : "text-muted-foreground",
           )}
         />
       )}
@@ -629,7 +629,7 @@ function TreeNodeRenderer({
         <FileText
           className={cn(
             "h-3.5 w-3.5 shrink-0",
-            isSelected ? "text-background/70" : "text-muted-foreground",
+            isSelected ? "text-foreground/70" : "text-muted-foreground",
           )}
         />
       )}
@@ -645,9 +645,7 @@ function TreeNodeRenderer({
               onClick={(e) => e.stopPropagation()}
               className={cn(
                 "flex h-5 w-5 items-center justify-center rounded",
-                isSelected
-                  ? "hover:bg-background/20"
-                  : "hover:bg-foreground/10",
+                "hover:bg-foreground/10",
               )}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />

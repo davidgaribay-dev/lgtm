@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Camera, Loader2 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 import { authClient } from "@/lib/auth-client";
+import { MIN_PASSWORD_LENGTH } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AuthInput, AuthLabel, PasswordInput } from "@/components/auth-ui";
@@ -38,8 +39,8 @@ export function SignupForm() {
     e.preventDefault();
     setError("");
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -193,11 +194,11 @@ export function SignupForm() {
           }}
           disabled={isPending}
           required
-          minLength={8}
+          minLength={MIN_PASSWORD_LENGTH}
           autoComplete="new-password"
         />
         <p className="text-xs text-muted-foreground">
-          Must be at least 8 characters
+          Must be at least {MIN_PASSWORD_LENGTH} characters
         </p>
       </div>
 

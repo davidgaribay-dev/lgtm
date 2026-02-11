@@ -40,6 +40,7 @@ export const auth = betterAuth({
 
   emailAndPassword: {
     enabled: true,
+    minPasswordLength: 12,
     // Uncomment when Resend is configured to enable password reset:
     // sendResetPassword: async ({ user, url }) => {
     //   await fetch("https://api.resend.com/emails", {
@@ -61,9 +62,40 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // refresh if older than 1 day
+    freshAge: 60 * 60, // 1 hour — re-auth required for sensitive ops after this
     cookieCache: {
       enabled: true,
       maxAge: 5 * 60, // 5-minute cookie cache to reduce DB queries
+    },
+  },
+
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    storage: "memory",
+    customRules: {
+      "/sign-in/email": {
+        window: 60,
+        max: 5,
+      },
+      "/sign-up/email": {
+        window: 60,
+        max: 3,
+      },
+      "/forget-password": {
+        window: 300,
+        max: 3,
+      },
+    },
+  },
+
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+    defaultCookieAttributes: {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      secure: process.env.NODE_ENV === "production",
     },
   },
 
@@ -72,6 +104,9 @@ export const auth = betterAuth({
     organization({
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
+      organizationLimit: 5,
+      membershipLimit: 100,
+      invitationLimit: 50,
       invitationExpiresIn: 60 * 60 * 24 * 7, // 7 days
       ac,
       roles: {
@@ -91,7 +126,8 @@ export const auth = betterAuth({
           return;
         }
 
-        await fetch("https://api.resend.com/emails", {
+        // Fire-and-forget: do NOT await to prevent timing attacks
+        fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -116,6 +152,8 @@ export const auth = betterAuth({
               </div>
             `,
           }),
+        }).catch((err) => {
+          console.error("[INVITATION] Failed to send email:", err);
         });
       },
     }),

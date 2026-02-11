@@ -128,8 +128,8 @@ export function TestRepoCreateCase({
     <div className="flex h-full">
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-4xl px-8 py-12">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="mx-auto max-w-4xl px-6 pt-3 pb-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="text-sm text-destructive">
                 {error}
@@ -149,7 +149,7 @@ export function TestRepoCreateCase({
                 }}
                 disabled={isPending}
                 required
-                className="border-0 px-0 text-2xl font-semibold placeholder:text-muted-foreground/40 focus-visible:ring-0"
+                className="border-0 px-0 text-5xl font-bold shadow-none placeholder:text-muted-foreground/40 focus-visible:ring-0"
               />
             </div>
 
@@ -162,15 +162,12 @@ export function TestRepoCreateCase({
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isPending}
                 rows={6}
-                className="resize-none border-0 px-0 focus-visible:ring-0"
+                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
               />
             </div>
 
             {/* Preconditions */}
             <div className="space-y-3">
-              <Label htmlFor="tc-preconditions" className="text-sm text-muted-foreground">
-                Preconditions
-              </Label>
               <Textarea
                 id="tc-preconditions"
                 placeholder="Add preconditions..."
@@ -178,7 +175,7 @@ export function TestRepoCreateCase({
                 onChange={(e) => setPreconditions(e.target.value)}
                 disabled={isPending}
                 rows={4}
-                className="resize-none border-0 px-0 focus-visible:ring-0"
+                className="resize-none border-0 px-0 shadow-none focus-visible:ring-0"
               />
             </div>
 
@@ -210,7 +207,7 @@ export function TestRepoCreateCase({
       </div>
 
       {/* Right sidebar - Properties */}
-      <div className="w-80 border-l bg-card px-6 py-12">
+      <div className="w-80 border-l bg-card px-6 pt-3 pb-6">
         <div className="space-y-6">
           <div>
             <h3 className="mb-4 text-xs font-medium text-muted-foreground uppercase tracking-wider">

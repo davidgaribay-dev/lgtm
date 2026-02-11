@@ -7,7 +7,7 @@ import {
   apiTokenProjectScope,
   apiTokenActivity,
 } from "@/db/schema";
-import { verifyToken, parseToken } from "@/lib/token-utils";
+import { hashToken, parseToken } from "@/lib/token-utils";
 
 export interface TokenContext {
   type: "api_token";
@@ -50,8 +50,10 @@ export async function validateApiToken(
     return null;
   }
 
-  // Find token in database (only active, non-deleted, non-expired)
-  const tokens = await db
+  // O(1) indexed lookup by SHA-256 hash
+  const tokenHash = hashToken(token);
+
+  const [matchedToken] = await db
     .select({
       id: apiToken.id,
       tokenHash: apiToken.tokenHash,
@@ -63,16 +65,14 @@ export async function validateApiToken(
       scopeStatus: apiToken.scopeStatus,
     })
     .from(apiToken)
-    .where(and(eq(apiToken.status, "active"), isNull(apiToken.deletedAt)));
-
-  // Try to find matching token by hash (bcrypt compare is expensive)
-  let matchedToken = null;
-  for (const t of tokens) {
-    if (await verifyToken(token, t.tokenHash)) {
-      matchedToken = t;
-      break;
-    }
-  }
+    .where(
+      and(
+        eq(apiToken.tokenHash, tokenHash),
+        eq(apiToken.status, "active"),
+        isNull(apiToken.deletedAt),
+      ),
+    )
+    .limit(1);
 
   if (!matchedToken) {
     return null;

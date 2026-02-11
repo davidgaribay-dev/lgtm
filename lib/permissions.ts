@@ -15,6 +15,7 @@ const statements = {
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 
   // Team-level resources
   projectMember: ["create", "read", "update", "delete"],
@@ -35,6 +36,7 @@ export const ownerRole = ac.newRole({
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 });
 
 export const adminRole = ac.newRole({
@@ -49,6 +51,7 @@ export const adminRole = ac.newRole({
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 });
 
 export const memberRole = ac.newRole({
@@ -60,6 +63,7 @@ export const memberRole = ac.newRole({
   testRun: ["create", "read", "execute"],
   testPlan: ["read", "update"],
   shareLink: ["read"],
+  comment: ["create", "read", "update"],
 });
 
 export const viewerRole = ac.newRole({
@@ -71,6 +75,7 @@ export const viewerRole = ac.newRole({
   testRun: ["read"],
   testPlan: ["read"],
   shareLink: ["read"],
+  comment: ["read"],
 });
 
 // ============================================================
@@ -88,6 +93,7 @@ export const teamOwnerRole = ac.newRole({
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 });
 
 export const teamAdminRole = ac.newRole({
@@ -101,6 +107,7 @@ export const teamAdminRole = ac.newRole({
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 });
 
 export const teamMemberRole = ac.newRole({
@@ -114,6 +121,7 @@ export const teamMemberRole = ac.newRole({
   testRun: ["create", "read", "execute"],
   testPlan: ["read", "update"],
   shareLink: ["read"],
+  comment: ["create", "read", "update"],
 });
 
 export const teamViewerRole = ac.newRole({
@@ -127,4 +135,5 @@ export const teamViewerRole = ac.newRole({
   testRun: ["read"],
   testPlan: ["read"],
   shareLink: ["read"],
+  comment: ["read"],
 });

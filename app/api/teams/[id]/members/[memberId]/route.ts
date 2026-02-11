@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, isNull, sql } from "drizzle-orm";
+import { eq, and, isNull, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { project, projectMember } from "@/db/schema";
 import { canManageTeamMembers } from "@/lib/queries/team-permissions";
 import { getTeamMemberCountByRole } from "@/lib/queries/team-members";
+
+const VALID_TEAM_ROLES = ["team_owner", "team_admin", "team_member", "team_viewer"];
 
 export async function PATCH(
   request: NextRequest,
@@ -23,8 +25,8 @@ export async function PATCH(
   const body = await request.json();
   const { role } = body;
 
-  if (!role) {
-    return NextResponse.json({ error: "Role is required" }, { status: 400 });
+  if (!role || !VALID_TEAM_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   // Verify team
@@ -166,7 +168,7 @@ export async function DELETE(
       .where(
         and(
           eq(projectMember.projectId, id),
-          sql`${projectMember.role} IN ('team_owner', 'team_admin')`,
+          inArray(projectMember.role, ['team_owner', 'team_admin']),
           isNull(projectMember.deletedAt),
         ),
       );

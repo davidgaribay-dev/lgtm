@@ -5,13 +5,16 @@ import { testCase } from "@/db/schema";
 import { verifyProjectAccess } from "@/lib/api-auth";
 import { hasTokenPermission } from "@/lib/token-permissions";
 
+const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
+const VALID_TYPES = ["functional", "smoke", "regression"];
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { title, sectionId, projectId } = body;
+  const { title, sectionId, projectId, description, preconditions, priority, type } = body;
 
   if (!projectId) {
     return NextResponse.json(
@@ -38,11 +41,29 @@ export async function PATCH(
     }
   }
 
+  if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
+    return NextResponse.json(
+      { error: `Priority must be one of: ${VALID_PRIORITIES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (type !== undefined && !VALID_TYPES.includes(type)) {
+    return NextResponse.json(
+      { error: `Type must be one of: ${VALID_TYPES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
   const updates: Record<string, unknown> = {
     updatedBy: authContext.userId,
   };
   if (title?.trim()) updates.title = title.trim();
   if (sectionId !== undefined) updates.sectionId = sectionId || null;
+  if (description !== undefined) updates.description = description?.trim() || null;
+  if (preconditions !== undefined) updates.preconditions = preconditions?.trim() || null;
+  if (priority !== undefined) updates.priority = priority;
+  if (type !== undefined) updates.type = type;
 
   const [updated] = await db
     .update(testCase)

@@ -39,6 +39,7 @@ const PERMISSIONS = {
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
+  comment: ["create", "read", "update", "delete"],
 } as const;
 
 const RESOURCE_LABELS: Record<string, string> = {
@@ -51,6 +52,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   testRun: "Test Runs",
   testPlan: "Test Plans",
   shareLink: "Share Links",
+  comment: "Comments",
 };
 
 export function CreateTokenDialog({

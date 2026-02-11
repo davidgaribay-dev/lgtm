@@ -46,8 +46,20 @@ export async function PATCH(
   if (name !== undefined) updates.name = name.trim();
   if (description !== undefined)
     updates.description = description?.trim() || null;
-  if (expiresAt !== undefined)
-    updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+  if (expiresAt !== undefined) {
+    if (expiresAt) {
+      const date = new Date(expiresAt);
+      if (isNaN(date.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid expiration date" },
+          { status: 400 },
+        );
+      }
+      updates.expiresAt = date;
+    } else {
+      updates.expiresAt = null;
+    }
+  }
 
   const [updated] = await db
     .update(apiToken)
@@ -55,7 +67,10 @@ export async function PATCH(
     .where(eq(apiToken.id, id))
     .returning();
 
-  return NextResponse.json(updated);
+  const response = NextResponse.json(updated);
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  return response;
 }
 
 export async function DELETE(
@@ -100,5 +115,8 @@ export async function DELETE(
     })
     .where(eq(apiToken.id, id));
 
-  return NextResponse.json({ success: true });
+  const response = NextResponse.json({ success: true });
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  response.headers.set("Pragma", "no-cache");
+  return response;
 }

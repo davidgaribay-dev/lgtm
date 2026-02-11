@@ -691,6 +691,84 @@ export const projectMember = pgTable(
   ],
 );
 
+// ============================================================
+// Application tables — Comments (polymorphic, project-scoped)
+// ============================================================
+
+export const comment = pgTable(
+  "comment",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    parentId: text("parent_id"),
+    body: text("body").notNull(),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    ...auditFields,
+  },
+  (table) => [
+    index("comment_entity_idx").on(table.entityType, table.entityId),
+    index("comment_project_id_idx").on(table.projectId),
+    index("comment_parent_id_idx").on(table.parentId),
+    index("comment_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const commentReaction = pgTable(
+  "comment_reaction",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    commentId: text("comment_id")
+      .notNull()
+      .references(() => comment.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("comment_reaction_comment_id_idx").on(table.commentId),
+    uniqueIndex("comment_reaction_unique").on(
+      table.commentId,
+      table.userId,
+      table.emoji,
+    ),
+  ],
+);
+
+export const commentMention = pgTable(
+  "comment_mention",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    commentId: text("comment_id")
+      .notNull()
+      .references(() => comment.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (table) => [
+    index("comment_mention_comment_id_idx").on(table.commentId),
+    index("comment_mention_user_id_idx").on(table.userId),
+    uniqueIndex("comment_mention_unique").on(table.commentId, table.userId),
+  ],
+);
+
 export const projectMemberInvitation = pgTable(
   "project_member_invitation",
   {

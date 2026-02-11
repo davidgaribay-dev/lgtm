@@ -1,10 +1,8 @@
 import crypto from "crypto";
-import bcrypt from "bcrypt";
 
 const TOKEN_VERSION = "v1";
 const TOKEN_PREFIX = "lgtm";
 const TOKEN_LENGTH = 48;
-const SALT_ROUNDS = 10;
 
 /**
  * Generate a new API token with format: lgtm_v1_<random-48-chars>
@@ -33,20 +31,21 @@ export function parseToken(
 }
 
 /**
- * Hash a token using bcrypt.
- * Never store tokens in plaintext - always hash them first.
+ * Hash a token using SHA-256.
+ * API tokens have 256+ bits of entropy, so a fast cryptographic hash is secure.
+ * Unlike bcrypt, SHA-256 produces deterministic output enabling O(1) indexed DB lookup.
  */
-export async function hashToken(token: string): Promise<string> {
-  return bcrypt.hash(token, SALT_ROUNDS);
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 /**
- * Verify a token against its hash using bcrypt.
- * Used during authentication to check if the provided token matches the stored hash.
+ * Verify a token against its stored SHA-256 hash using timing-safe comparison.
  */
-export async function verifyToken(
-  token: string,
-  hash: string,
-): Promise<boolean> {
-  return bcrypt.compare(token, hash);
+export function verifyToken(token: string, storedHash: string): boolean {
+  const computedHash = hashToken(token);
+  const a = Buffer.from(computedHash, "utf8");
+  const b = Buffer.from(storedHash, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }

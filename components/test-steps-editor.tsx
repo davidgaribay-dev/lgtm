@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,14 +18,22 @@ interface TestStepsEditorProps {
   steps: TestStep[];
   onChange: (steps: TestStep[]) => void;
   disabled?: boolean;
+  // Edit-mode callbacks for auto-save (when editing existing test cases)
+  onStepSave?: (step: TestStep) => Promise<void>;
+  onStepCreate?: (step: TestStep) => Promise<TestStep>;
+  onStepDelete?: (stepId: string) => Promise<void>;
 }
 
 export function TestStepsEditor({
   steps,
   onChange,
   disabled = false,
+  onStepSave,
+  onStepCreate,
+  onStepDelete,
 }: TestStepsEditorProps) {
   const [localSteps, setLocalSteps] = useState(steps);
+  const savingRef = useRef<Set<string>>(new Set());
 
   const handleAddStep = useCallback(() => {
     const newStep: TestStep = {
@@ -54,17 +62,59 @@ export function TestStepsEditor({
   );
 
   const handleDeleteStep = useCallback(
-    (index: number) => {
+    async (index: number) => {
+      const step = localSteps[index];
       const updated = localSteps.filter((_, i) => i !== index);
-      // Reorder remaining steps
-      const reordered = updated.map((step, i) => ({
-        ...step,
+      const reordered = updated.map((s, i) => ({
+        ...s,
         stepOrder: i,
       }));
       setLocalSteps(reordered);
       onChange(reordered);
+
+      // Persist deletion for existing steps
+      if (onStepDelete && !step.id.startsWith("temp-")) {
+        await onStepDelete(step.id);
+      }
     },
-    [localSteps, onChange],
+    [localSteps, onChange, onStepDelete],
+  );
+
+  const handleStepBlur = useCallback(
+    async (index: number) => {
+      const step = localSteps[index];
+      if (!step || savingRef.current.has(step.id)) return;
+
+      const isTemp = step.id.startsWith("temp-");
+
+      if (isTemp && onStepCreate && step.action.trim()) {
+        // Persist new step
+        savingRef.current.add(step.id);
+        try {
+          const created = await onStepCreate(step);
+          setLocalSteps((prev) => {
+            const updated = [...prev];
+            const idx = updated.findIndex((s) => s.id === step.id);
+            if (idx !== -1) {
+              updated[idx] = { ...updated[idx], id: created.id };
+            }
+            onChange(updated);
+            return updated;
+          });
+        } finally {
+          savingRef.current.delete(step.id);
+        }
+      } else if (!isTemp && onStepSave) {
+        // Update existing step
+        savingRef.current.add(step.id);
+        try {
+          await onStepSave(step);
+        } finally {
+          savingRef.current.delete(step.id);
+        }
+      }
+    },
+    [localSteps, onStepCreate, onStepSave, onChange],
   );
 
   return (
@@ -87,11 +137,11 @@ export function TestStepsEditor({
       {localSteps.length === 0 ? (
         <div className="rounded-lg border border-dashed px-6 py-8 text-center">
           <p className="text-sm text-muted-foreground">
-            No steps added yet. Click "Add Step" to create your first step.
+            No steps added yet. Click &quot;Add Step&quot; to create your first step.
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="rounded-lg border bg-card">
           {/* Table header */}
           <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-3 border-b bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground">
             <div></div>
@@ -126,6 +176,7 @@ export function TestStepsEditor({
                   onChange={(e) =>
                     handleUpdateStep(index, "action", e.target.value)
                   }
+                  onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
                   className="min-h-[60px] resize-none text-sm"
@@ -140,6 +191,7 @@ export function TestStepsEditor({
                   onChange={(e) =>
                     handleUpdateStep(index, "data", e.target.value)
                   }
+                  onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
                   className="min-h-[60px] resize-none text-sm"
@@ -154,6 +206,7 @@ export function TestStepsEditor({
                   onChange={(e) =>
                     handleUpdateStep(index, "expectedResult", e.target.value)
                   }
+                  onBlur={() => handleStepBlur(index)}
                   disabled={disabled}
                   rows={2}
                   className="min-h-[60px] resize-none text-sm"

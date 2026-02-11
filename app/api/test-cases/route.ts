@@ -8,6 +8,9 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 
+const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
+const VALID_TYPES = ["functional", "smoke", "regression"];
+
 export async function POST(request: NextRequest) {
   const authContext = await getAuthContext(request);
 
@@ -21,6 +24,20 @@ export async function POST(request: NextRequest) {
   if (!title?.trim() || !projectId) {
     return NextResponse.json(
       { error: "Title and project ID are required" },
+      { status: 400 },
+    );
+  }
+
+  if (priority && !VALID_PRIORITIES.includes(priority)) {
+    return NextResponse.json(
+      { error: `Priority must be one of: ${VALID_PRIORITIES.join(", ")}` },
+      { status: 400 },
+    );
+  }
+
+  if (type && !VALID_TYPES.includes(type)) {
+    return NextResponse.json(
+      { error: `Type must be one of: ${VALID_TYPES.join(", ")}` },
       { status: 400 },
     );
   }
@@ -78,47 +95,44 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Use transaction to atomically increment counter and create test case
-  const [created] = await db.transaction(async (tx) => {
-    // Get team key and increment counter
-    const [team] = await tx
-      .update(project)
-      .set({
-        nextTestCaseNumber: sql`${project.nextTestCaseNumber} + 1`,
-        updatedAt: new Date(),
-        updatedBy: authContext.userId,
-      })
-      .where(eq(project.id, projectId))
-      .returning({
-        key: project.key,
-        nextNumber: project.nextTestCaseNumber,
-      });
+  // Atomically increment counter and get team key
+  const [team] = await db
+    .update(project)
+    .set({
+      nextTestCaseNumber: sql`${project.nextTestCaseNumber} + 1`,
+      updatedAt: new Date(),
+      updatedBy: authContext.userId,
+    })
+    .where(eq(project.id, projectId))
+    .returning({
+      key: project.key,
+      nextNumber: project.nextTestCaseNumber,
+    });
 
-    if (!team) {
-      throw new Error("Project not found");
-    }
+  if (!team) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
-    const caseNumber = team.nextNumber;
-    const caseKey = `${team.key}-${caseNumber}`;
+  const caseNumber = team.nextNumber;
+  const caseKey = `${team.key}-${caseNumber}`;
 
-    // Create test case with number and key
-    return tx
-      .insert(testCase)
-      .values({
-        title: title.trim(),
-        projectId,
-        sectionId: sectionId || null,
-        description: description?.trim() || null,
-        preconditions: preconditions?.trim() || null,
-        priority: priority || "medium",
-        type: type || "functional",
-        caseNumber,
-        caseKey,
-        createdBy: authContext.userId,
-        updatedBy: authContext.userId,
-      })
-      .returning();
-  });
+  // Create test case with number and key
+  const [created] = await db
+    .insert(testCase)
+    .values({
+      title: title.trim(),
+      projectId,
+      sectionId: sectionId || null,
+      description: description?.trim() || null,
+      preconditions: preconditions?.trim() || null,
+      priority: priority || "medium",
+      type: type || "functional",
+      caseNumber,
+      caseKey,
+      createdBy: authContext.userId,
+      updatedBy: authContext.userId,
+    })
+    .returning();
 
   return NextResponse.json(created, { status: 201 });
 }
