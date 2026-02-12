@@ -2,6 +2,8 @@
 
 Next.js web application — the main LGTM UI. Lives at `apps/web/` in the monorepo.
 
+Depends on `@lgtm/shared` for constants and types (build packages first: `pnpm build:packages` from root).
+
 ## Commands
 
 Run from this directory (`apps/web/`) or from the monorepo root (which proxies here via `--filter`).
@@ -19,6 +21,19 @@ pnpm db:studio        # Browser UI for browsing/editing DB data
 ## Architecture
 
 Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, and shadcn/ui (new-york style). The app is a **test case management system** (similar to TestRail/Zephyr) with team-based RBAC. No test framework is configured yet.
+
+### Shared Constants
+
+API route validation uses constants imported from `@lgtm/shared` instead of inline arrays. When adding or modifying validation in API routes, import from the shared package:
+
+```typescript
+import { TEST_CASE_PRIORITIES, TEST_CASE_TYPES, TEST_CASE_SEVERITIES } from "@lgtm/shared";
+
+// Use in validation:
+if (!TEST_CASE_PRIORITIES.includes(priority)) { ... }
+```
+
+Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `environments`, `cycles`, `workspace-cycles`, `test-plans`, `teams/members`. See `@lgtm/shared` CLAUDE.md for the full list of available constants.
 
 ### Route structure
 

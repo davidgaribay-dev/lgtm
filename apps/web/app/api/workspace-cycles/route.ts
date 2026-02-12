@@ -5,8 +5,7 @@ import { workspaceCycle, organization, member } from "@/db/schema";
 import { getAuthContext } from "@/lib/api-auth";
 import { hasTokenPermission } from "@/lib/token-permissions";
 import { logger } from "@/lib/logger";
-
-const VALID_STATUSES = ["planned", "active", "completed"];
+import { CYCLE_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 export async function GET(request: NextRequest) {
   const authContext = await getAuthContext(request);

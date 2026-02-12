@@ -8,8 +8,7 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { computeRunStatus } from "@/lib/queries/test-runs";
-
-const VALID_STATUSES = ["untested", "passed", "failed", "blocked", "skipped"];
+import { TEST_RESULT_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 /** POST — Bulk submit results for a test run. */
 export async function POST(

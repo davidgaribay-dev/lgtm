@@ -14,6 +14,7 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { getTestResultSteps } from "@/lib/queries/test-runs";
+import { TEST_RESULT_STATUSES } from "@lgtm/shared";
 
 /** GET — Step results for a test result, joined with step definitions. */
 export async function GET(
@@ -183,7 +184,7 @@ export async function PUT(
     );
   }
 
-  const VALID_STATUSES = ["untested", "passed", "failed", "blocked", "skipped"];
+  const VALID_STATUSES = TEST_RESULT_STATUSES;
 
   // Upsert each step result
   const results = [];

@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "pnpm --filter @lgtm/web dev",
     "build": "pnpm --filter @lgtm/web build",
+    "build:shared": "pnpm --filter @lgtm/shared build",
+    "build:reporter": "pnpm --filter @lgtm/playwright-reporter build",
+    "build:packages": "pnpm -r --filter './packages/**' build",
     "start": "pnpm --filter @lgtm/web start",
     "lint": "pnpm --filter @lgtm/web lint",
     "db:generate": "pnpm --filter @lgtm/web db:generate",

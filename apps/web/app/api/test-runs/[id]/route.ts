@@ -8,14 +8,7 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { getTestRun, getTestRunResults, getRunMetrics } from "@/lib/queries/test-runs";
-
-const VALID_STATUSES = [
-  "pending",
-  "in_progress",
-  "passed",
-  "failed",
-  "blocked",
-];
+import { TEST_RUN_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 export async function GET(
   request: NextRequest,

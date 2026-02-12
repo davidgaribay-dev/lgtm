@@ -7,8 +7,7 @@ import {
   hasTokenPermission,
   hasProjectAccess,
 } from "@/lib/token-permissions";
-
-const VALID_STATUSES = ["planned", "active", "completed"];
+import { CYCLE_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 export async function GET(request: NextRequest) {
   const authContext = await getAuthContext(request);

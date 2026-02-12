@@ -6,8 +6,7 @@ import { db } from "@/db";
 import { project, projectMember } from "@/db/schema";
 import { canManageTeamMembers } from "@/lib/queries/team-permissions";
 import { getTeamMemberCountByRole } from "@/lib/queries/team-members";
-
-const VALID_TEAM_ROLES = ["team_owner", "team_admin", "team_member", "team_viewer"];
+import { TEAM_ROLES as VALID_TEAM_ROLES } from "@lgtm/shared";
 
 export async function PATCH(
   request: NextRequest,

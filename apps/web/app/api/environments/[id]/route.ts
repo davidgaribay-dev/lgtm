@@ -7,8 +7,7 @@ import {
   hasTokenPermission,
   hasProjectAccess,
 } from "@/lib/token-permissions";
-
-const VALID_TYPES = ["development", "staging", "qa", "production", "custom"];
+import { ENVIRONMENT_TYPES as VALID_TYPES } from "@lgtm/shared";
 
 export async function PUT(
   request: NextRequest,

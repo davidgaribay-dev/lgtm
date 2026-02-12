@@ -8,8 +8,7 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { getTestPlanCases } from "@/lib/queries/test-plans";
-
-const VALID_STATUSES = ["draft", "active", "completed", "archived"];
+import { TEST_PLAN_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 export async function GET(
   request: NextRequest,

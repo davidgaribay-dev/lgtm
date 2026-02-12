@@ -4,20 +4,15 @@ import { db } from "@/db";
 import { testCase } from "@/db/schema";
 import { verifyProjectAccess } from "@/lib/api-auth";
 import { hasTokenPermission } from "@/lib/token-permissions";
-
-const VALID_PRIORITIES = ["low", "medium", "high", "critical"];
-const VALID_TYPES = [
-  "functional", "smoke", "regression", "security", "usability",
-  "performance", "acceptance", "compatibility", "integration",
-  "exploratory", "other",
-];
-const VALID_SEVERITIES = [
-  "not_set", "blocker", "critical", "major", "normal", "minor", "trivial",
-];
-const VALID_AUTOMATION_STATUSES = ["not_automated", "automated", "to_be_automated"];
-const VALID_STATUSES = ["draft", "active", "deprecated"];
-const VALID_BEHAVIORS = ["not_set", "positive", "negative", "destructive"];
-const VALID_LAYERS = ["not_set", "e2e", "api", "unit"];
+import {
+  TEST_CASE_PRIORITIES as VALID_PRIORITIES,
+  TEST_CASE_TYPES as VALID_TYPES,
+  TEST_CASE_SEVERITIES as VALID_SEVERITIES,
+  TEST_CASE_AUTOMATION_STATUSES as VALID_AUTOMATION_STATUSES,
+  TEST_CASE_STATUSES as VALID_STATUSES,
+  TEST_CASE_BEHAVIORS as VALID_BEHAVIORS,
+  TEST_CASE_LAYERS as VALID_LAYERS,
+} from "@lgtm/shared";
 
 export async function PATCH(
   request: NextRequest,

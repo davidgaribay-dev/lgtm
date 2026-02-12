@@ -8,28 +8,10 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { getDefect } from "@/lib/queries/defects";
+import { DEFECT_STATUSES, DEFECT_RESOLUTIONS } from "@lgtm/shared";
 
-const VALID_STATUSES = [
-  "open",
-  "in_progress",
-  "fixed",
-  "verified",
-  "closed",
-  "reopened",
-  "deferred",
-  "rejected",
-  "duplicate",
-];
-
-const VALID_RESOLUTIONS = [
-  null,
-  "fixed",
-  "wont_fix",
-  "duplicate",
-  "cannot_reproduce",
-  "by_design",
-  "deferred",
-];
+const VALID_STATUSES: readonly (string | null)[] = DEFECT_STATUSES;
+const VALID_RESOLUTIONS: readonly (string | null)[] = [null, ...DEFECT_RESOLUTIONS];
 
 export async function GET(
   request: NextRequest,

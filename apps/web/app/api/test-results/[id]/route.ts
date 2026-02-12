@@ -8,14 +8,7 @@ import {
   hasProjectAccess,
 } from "@/lib/token-permissions";
 import { computeRunStatus } from "@/lib/queries/test-runs";
-
-const VALID_STATUSES = [
-  "untested",
-  "passed",
-  "failed",
-  "blocked",
-  "skipped",
-];
+import { TEST_RESULT_STATUSES as VALID_STATUSES } from "@lgtm/shared";
 
 export async function PATCH(
   request: NextRequest,
