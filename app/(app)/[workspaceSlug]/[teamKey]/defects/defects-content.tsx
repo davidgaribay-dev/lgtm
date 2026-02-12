@@ -144,7 +144,7 @@ export function DefectsContent({
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-card">
       <PageBreadcrumb items={[{ label: teamName }, { label: "Defects" }]}>
         <Button
           size="sm"

@@ -165,7 +165,7 @@ export function TeamTokensList() {
   };
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-card">
       <PageBreadcrumb items={[{ label: "API Tokens" }]}>
         <Button
           size="sm"

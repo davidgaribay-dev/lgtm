@@ -412,7 +412,7 @@ function TestResultExecutionInner({
   }
 
   return (
-    <div className="flex min-h-svh bg-background">
+    <div className="flex min-h-svh bg-card">
       {/* Left: breadcrumb + main content */}
       <div className="flex min-w-0 flex-1 flex-col">
         <PageBreadcrumb

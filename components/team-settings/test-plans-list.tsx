@@ -338,7 +338,7 @@ export function TestPlansList() {
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-card">
       <PageBreadcrumb items={[{ label: "Test Plans" }]}>
         <Button
           size="sm"

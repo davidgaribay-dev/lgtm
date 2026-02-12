@@ -47,7 +47,7 @@ export default async function WorkspaceLayout({
       }}
     >
       <DndProviderWrapper>
-        <div className="min-h-svh bg-muted dark:bg-background">
+        <div className="min-h-svh bg-card">
           <AppSidebar user={session.user} />
           <SidebarMainArea>
             <main>{children}</main>

@@ -341,7 +341,7 @@ export function CyclesList() {
   );
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-card">
       <PageBreadcrumb items={[{ label: "Cycles" }]}>
         <Button
           size="sm"

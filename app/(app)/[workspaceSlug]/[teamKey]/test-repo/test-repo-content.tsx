@@ -257,7 +257,7 @@ export function TestRepoContent({
       />
 
       {/* Detail pane */}
-      <div className="min-w-0 flex-1 overflow-y-auto bg-background">
+      <div className="min-w-0 flex-1 overflow-y-auto bg-card">
         {isCreating ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

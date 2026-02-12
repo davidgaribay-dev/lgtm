@@ -321,7 +321,7 @@ export function EnvironmentsContent({
   );
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-card">
       <PageBreadcrumb items={[{ label: "Environments" }]}>
         {isAdmin && (
           <Button

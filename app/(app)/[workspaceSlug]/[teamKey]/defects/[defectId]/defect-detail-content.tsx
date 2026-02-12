@@ -359,7 +359,7 @@ function DefectDetailInner({
   }
 
   return (
-    <div className="flex h-svh flex-col bg-background">
+    <div className="flex h-svh flex-col bg-card">
       {/* Breadcrumb */}
       <PageBreadcrumb items={breadcrumbItems}>
         {/* Save indicator */}
