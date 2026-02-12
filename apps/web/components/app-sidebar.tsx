@@ -708,7 +708,7 @@ function TeamItem({
       </div>
 
       <CollapsibleContent>
-        <div className="ml-4 space-y-0.5 border-l pl-2">
+        <div className="ml-8 space-y-0.5 pl-4">
           {teamSubItems.map((item) => {
             const href = `${teamPath}/${item.segment}`;
             const active =

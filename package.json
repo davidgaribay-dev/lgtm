@@ -14,7 +14,8 @@
     "db:migrate": "pnpm --filter @lgtm/web db:migrate",
     "db:push": "pnpm --filter @lgtm/web db:push",
     "db:studio": "pnpm --filter @lgtm/web db:studio",
-    "db:reset": "pnpm --filter @lgtm/web db:reset"
+    "db:reset": "pnpm --filter @lgtm/web db:reset",
+    "test:reporter": "pnpm --filter @lgtm/playwright-reporter test"
   },
   "packageManager": "pnpm@9.15.4"
 }
