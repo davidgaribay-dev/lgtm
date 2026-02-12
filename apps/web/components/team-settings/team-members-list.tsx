@@ -1,26 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Trash2 } from "lucide-react";
+import { MoreHorizontal, Plus, RefreshCw, Users } from "lucide-react";
 import { useTeamSettings } from "@/lib/team-settings-context";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -42,9 +30,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import {
+  GroupedList,
+  groupedListRowClass,
+  formatRelativeDate,
+  type ListGroup,
+} from "@/components/grouped-list";
 
 interface TeamMember {
   memberId: string;
@@ -66,26 +58,70 @@ interface AvailableOrgMember {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+const ROLE_ORDER = [
+  "team_owner",
+  "team_admin",
+  "team_member",
+  "team_viewer",
+] as const;
+
 const ROLE_LABELS: Record<string, string> = {
-  team_owner: "Team Owner",
-  team_admin: "Team Admin",
-  team_member: "Team Member",
-  team_viewer: "Team Viewer",
+  team_owner: "Owners",
+  team_admin: "Admins",
+  team_member: "Members",
+  team_viewer: "Viewers",
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  team_owner: "default",
-  team_admin: "secondary",
-  team_member: "outline",
-  team_viewer: "outline",
+const ROLE_BADGE_LABELS: Record<string, string> = {
+  team_owner: "Owner",
+  team_admin: "Admin",
+  team_member: "Member",
+  team_viewer: "Viewer",
 };
 
-export function TeamMembersContent() {
+function getRoleDotColor(role: string) {
+  switch (role) {
+    case "team_owner":
+      return "border-emerald-500 bg-emerald-500/20";
+    case "team_admin":
+      return "border-blue-500 bg-blue-500/20";
+    case "team_member":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    case "team_viewer":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    default:
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+  }
+}
+
+function getRoleBadgeVariant(
+  role: string,
+): "default" | "secondary" | "outline" {
+  switch (role) {
+    case "team_owner":
+      return "default";
+    case "team_admin":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+export function TeamMembersList() {
   const router = useRouter();
   const { team } = useTeamSettings();
+
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
 
   const { data: members, mutate: mutateMembers } = useSWR<TeamMember[]>(
     `/api/teams/${team.id}/members`,
@@ -98,6 +134,22 @@ export function TeamMembersContent() {
       : null,
     fetcher,
   );
+
+  const groups = useMemo((): ListGroup<TeamMember>[] => {
+    if (!members) return [];
+    const map = new Map<string, TeamMember[]>();
+    for (const m of members) {
+      const list = map.get(m.role) ?? [];
+      list.push(m);
+      map.set(m.role, list);
+    }
+    return ROLE_ORDER.filter((r) => map.has(r)).map((r) => ({
+      key: r,
+      label: ROLE_LABELS[r] ?? r,
+      dotColor: getRoleDotColor(r),
+      items: map.get(r)!,
+    }));
+  }, [members]);
 
   async function handleRoleChange(memberId: string, newRole: string) {
     const res = await fetch(`/api/teams/${team.id}/members/${memberId}`, {
@@ -115,149 +167,117 @@ export function TeamMembersContent() {
   }
 
   async function handleRemoveMember() {
-    if (!selectedMember) return;
+    if (!removeTarget) return;
 
     const res = await fetch(
-      `/api/teams/${team.id}/members/${selectedMember.memberId}`,
-      {
-        method: "DELETE",
-      },
+      `/api/teams/${team.id}/members/${removeTarget.memberId}`,
+      { method: "DELETE" },
     );
 
     if (res.ok) {
       mutateMembers();
-      setRemoveDialogOpen(false);
-      setSelectedMember(null);
+      setRemoveTarget(null);
     } else {
       const data = await res.json();
       alert(data.error || "Failed to remove member");
     }
   }
 
-  function formatDate(date: string) {
-    return new Date(date).toLocaleDateString();
-  }
-
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Team Members</h1>
-          <p className="text-muted-foreground">
-            Manage who has access to {team.name}.
-          </p>
-        </div>
-        <Button onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add Member
+    <div className="flex min-h-svh flex-col bg-card">
+      <PageBreadcrumb items={[{ label: "Members" }]}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setAddDialogOpen(true)}
+          className="h-7 gap-1.5 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add
         </Button>
+      </PageBreadcrumb>
+
+      <div className="flex-1">
+        {!members ? (
+          <div className="flex items-center justify-center py-24">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <GroupedList
+            groups={groups}
+            getItemId={(m) => m.memberId}
+            emptyIcon={
+              <Users className="h-10 w-10 text-muted-foreground/40" />
+            }
+            emptyTitle="No team members"
+            emptyDescription="Add organization members to this team to get started."
+            emptyAction={
+              <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Add Member
+              </Button>
+            }
+            renderRow={(member) => (
+              <div className={groupedListRowClass}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {ROLE_ORDER.filter((r) => r !== member.role).map((r) => (
+                      <DropdownMenuItem
+                        key={r}
+                        onClick={() => handleRoleChange(member.memberId, r)}
+                      >
+                        Change to {ROLE_BADGE_LABELS[r]}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setRemoveTarget(member)}
+                    >
+                      Remove from team
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={member.image ?? undefined} />
+                  <AvatarFallback className="text-[10px]">
+                    {getInitials(member.name)}
+                  </AvatarFallback>
+                </Avatar>
+
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {member.name}
+                </span>
+
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    {member.email}
+                  </span>
+                  <Badge
+                    variant={getRoleBadgeVariant(member.role)}
+                    className="text-[10px] leading-none"
+                  >
+                    {ROLE_BADGE_LABELS[member.role] ?? member.role}
+                  </Badge>
+                  <span className="w-12 text-right text-[11px] text-muted-foreground">
+                    {formatRelativeDate(member.joinedAt)}
+                  </span>
+                </div>
+              </div>
+            )}
+          />
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Members</CardTitle>
-          <CardDescription>
-            {members?.length ?? 0} member{members?.length !== 1 ? "s" : ""} in
-            this team.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!members && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              )}
-              {members && members.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    No team members yet. Add members to get started.
-                  </TableCell>
-                </TableRow>
-              )}
-              {members?.map((member) => (
-                <TableRow key={member.memberId}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={member.image ?? undefined} />
-                        <AvatarFallback>
-                          {member.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{member.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {member.email}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={member.role}
-                      onValueChange={(value) =>
-                        handleRoleChange(member.memberId, value)
-                      }
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="team_owner">Team Owner</SelectItem>
-                        <SelectItem value="team_admin">Team Admin</SelectItem>
-                        <SelectItem value="team_member">Team Member</SelectItem>
-                        <SelectItem value="team_viewer">Team Viewer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(member.joinedAt)}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedMember(member);
-                            setRemoveDialogOpen(true);
-                          }}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove from team
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
+      {/* Add member dialog */}
       <AddMemberDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
@@ -269,19 +289,23 @@ export function TeamMembersContent() {
         }}
       />
 
-      <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+      {/* Remove member confirmation */}
+      <Dialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Remove team member?</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove {selectedMember?.name} from this
+              Are you sure you want to remove {removeTarget?.name} from this
               team? They will lose access to all team resources.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setRemoveDialogOpen(false)}
+              onClick={() => setRemoveTarget(null)}
             >
               Cancel
             </Button>

@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { CreateDefectDialog } from "../../../../defects/create-defect-dialog";
+import { AttachmentSection } from "@/components/attachments/attachment-section";
 
 interface RunInfo {
   id: string;
@@ -691,6 +692,17 @@ function TestResultExecutionInner({
                   placeholder="Add a comment about this result..."
                   rows={3}
                   className="text-sm"
+                />
+              </div>
+
+              {/* Attachments */}
+              <div className="border-t pt-6">
+                <AttachmentSection
+                  entityType="test_result"
+                  entityId={result.id}
+                  projectId={projectId}
+                  canWrite={true}
+                  canDeleteAny={false}
                 />
               </div>
 

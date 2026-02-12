@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,5 +24,8 @@
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

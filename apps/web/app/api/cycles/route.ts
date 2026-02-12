@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   if (!projectId) {
     return NextResponse.json(
-      { message: "projectId is required" },
+      { error: "projectId is required" },
       { status: 400 },
     );
   }
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   if (!proj) {
     return NextResponse.json(
-      { message: "Project not found" },
+      { error: "Project not found" },
       { status: 404 },
     );
   }
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       .then((rows) => rows[0] ?? null);
 
     if (!membership) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
@@ -126,14 +126,14 @@ export async function POST(request: NextRequest) {
 
   if (!name?.trim() || !projectId) {
     return NextResponse.json(
-      { message: "Name and project ID are required" },
+      { error: "Name and project ID are required" },
       { status: 400 },
     );
   }
 
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json(
-      { message: `Status must be one of: ${VALID_STATUSES.join(", ")}` },
+      { error: `Status must be one of: ${VALID_STATUSES.join(", ")}` },
       { status: 400 },
     );
   }
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
   // Validate date logic
   if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
     return NextResponse.json(
-      { message: "Start date must be before end date" },
+      { error: "Start date must be before end date" },
       { status: 400 },
     );
   }
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
   if (!proj) {
     return NextResponse.json(
-      { message: "Project not found" },
+      { error: "Project not found" },
       { status: 404 },
     );
   }
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
       .then((rows) => rows[0] ?? null);
 
     if (!membership) {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
 
   if (existing.length > 0) {
     return NextResponse.json(
-      { message: "A cycle with this name already exists" },
+      { error: "A cycle with this name already exists" },
       { status: 409 },
     );
   }

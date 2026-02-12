@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, Check, Loader2, X } from "lucide-react";
-import { upload } from "@vercel/blob/client";
 import { authClient } from "@/lib/auth-client";
 import { generateSlug } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -74,12 +73,16 @@ export function WorkspaceForm() {
     setIsUploading(true);
     setError("");
     try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ context: "workspace-logo" }),
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("context", "workspace-logo");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
-      setLogoUrl(blob.url);
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setLogoUrl(url);
     } catch {
       setError("Failed to upload logo. Please try again.");
     } finally {

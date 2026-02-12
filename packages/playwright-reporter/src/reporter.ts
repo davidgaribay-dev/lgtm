@@ -1,3 +1,4 @@
+import { resolve, relative } from "node:path";
 import type {
   Reporter,
   FullConfig,
@@ -22,8 +23,13 @@ import {
   buildTestTitle,
   formatErrorComment,
   extractLgtmMetadata,
+  sanitizeSecrets,
+  LGTM_METADATA_CONTENT_TYPE,
   type LgtmMetadata,
 } from "./mapper.js";
+
+/** Maximum bytes of stdout/stderr to buffer per test (256 KB). */
+const MAX_LOG_BUFFER_BYTES = 256 * 1024;
 
 interface QueuedResult {
   testCaseId: string;
@@ -60,6 +66,8 @@ export class LgtmReporter implements Reporter {
   private testRun: CreateTestRunResponse | null = null;
   private resultQueue: QueuedResult[] = [];
   private logBuffer: Map<string, string[]> = new Map(); // testId → stdout lines
+  /** Track approximate byte size of each test's log buffer to enforce cap. */
+  private logBufferSize = new Map<string, number>();
 
   /** Map: Playwright test ID → LGTM test case ID */
   private testCaseMap = new Map<string, string>();
@@ -67,6 +75,13 @@ export class LgtmReporter implements Reporter {
   private testCaseKeyMap = new Map<string, string>();
   /** Map: Playwright test ID → title (for display) */
   private testTitleMap = new Map<string, string>();
+  /** Map: LGTM test case ID → LGTM test result ID (populated after flush) */
+  private testCaseToResultId = new Map<string, string>();
+  /** Map: Playwright test ID → file attachments to upload */
+  private attachmentBuffer = new Map<
+    string,
+    Array<{ path: string; name: string; contentType: string }>
+  >();
 
   private initError: Error | null = null;
 
@@ -184,17 +199,30 @@ export class LgtmReporter implements Reporter {
       error: result.error,
     });
 
-    // Buffer stdout/stderr for log upload
+    // Buffer stdout/stderr for log upload (with size cap)
     if (this.config.uploadLogs) {
-      const output: string[] = [];
       for (const chunk of result.stdout) {
-        output.push(typeof chunk === "string" ? chunk : chunk.toString("utf-8"));
+        this.appendToLogBuffer(test.id, typeof chunk === "string" ? chunk : chunk.toString("utf-8"));
       }
       for (const chunk of result.stderr) {
-        output.push(typeof chunk === "string" ? chunk : chunk.toString("utf-8"));
+        this.appendToLogBuffer(test.id, typeof chunk === "string" ? chunk : chunk.toString("utf-8"));
       }
-      if (output.length > 0) {
-        this.logBuffer.set(test.id, output);
+    }
+
+    // Buffer file attachments (screenshots, videos, traces) for upload
+    if (this.config.uploadAttachments) {
+      const fileAttachments = result.attachments.filter(
+        (a) => a.contentType !== LGTM_METADATA_CONTENT_TYPE && a.path,
+      );
+      if (fileAttachments.length > 0) {
+        this.attachmentBuffer.set(
+          test.id,
+          fileAttachments.map((a) => ({
+            path: a.path!,
+            name: a.name,
+            contentType: a.contentType,
+          })),
+        );
       }
     }
 
@@ -205,18 +233,12 @@ export class LgtmReporter implements Reporter {
 
   onStdOut(chunk: string | Buffer, test?: TestCase): void {
     if (!this.config?.uploadLogs || !test) return;
-    const text = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
-    const existing = this.logBuffer.get(test.id) || [];
-    existing.push(text);
-    this.logBuffer.set(test.id, existing);
+    this.appendToLogBuffer(test.id, typeof chunk === "string" ? chunk : chunk.toString("utf-8"));
   }
 
   onStdErr(chunk: string | Buffer, test?: TestCase): void {
     if (!this.config?.uploadLogs || !test) return;
-    const text = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
-    const existing = this.logBuffer.get(test.id) || [];
-    existing.push(`[stderr] ${text}`);
-    this.logBuffer.set(test.id, existing);
+    this.appendToLogBuffer(test.id, `[stderr] ${typeof chunk === "string" ? chunk : chunk.toString("utf-8")}`);
   }
 
   onError(error: TestError): void {
@@ -244,18 +266,23 @@ export class LgtmReporter implements Reporter {
         await this.uploadLogs();
       }
 
-      // 3. Create defects for failures
+      // 3. Upload attachments (screenshots, videos, traces)
+      if (this.config.uploadAttachments) {
+        await this.uploadAttachments();
+      }
+
+      // 4. Create defects for failures
       if (this.config.autoCreateDefects) {
         await this.createDefectsForFailures();
       }
 
-      // 4. Update run status
+      // 5. Update run status
       const runStatus = mapPlaywrightRunStatus(result.status);
       await this.client.updateTestRun(this.testRun.id, {
         status: runStatus,
       });
 
-      // 5. Print summary
+      // 6. Print summary
       this.printSummary(result);
     } catch (err) {
       this.logger.error("Failed to finalize LGTM results", err);
@@ -271,6 +298,23 @@ export class LgtmReporter implements Reporter {
   }
 
   // ── Private helpers ────────────────────────────────────────────────
+
+  /** Append text to a test's log buffer, enforcing a per-test size cap. */
+  private appendToLogBuffer(testId: string, text: string): void {
+    const currentSize = this.logBufferSize.get(testId) ?? 0;
+    if (currentSize >= MAX_LOG_BUFFER_BYTES) return; // Already at cap
+
+    const existing = this.logBuffer.get(testId) ?? [];
+    existing.push(text);
+    this.logBuffer.set(testId, existing);
+
+    const newSize = currentSize + Buffer.byteLength(text, "utf-8");
+    this.logBufferSize.set(testId, newSize);
+
+    if (newSize >= MAX_LOG_BUFFER_BYTES) {
+      existing.push("\n[lgtm] Log output truncated (exceeded 256 KB limit)");
+    }
+  }
 
   private async resolveProject(): Promise<Project | null> {
     const teams = await this.client.getTeams();
@@ -509,6 +553,12 @@ export class LgtmReporter implements Reporter {
           this.testRun.id,
           batch,
         );
+        // Capture testCaseId → testResultId mapping for attachment uploads
+        if (response.results) {
+          for (const r of response.results) {
+            this.testCaseToResultId.set(r.testCaseId, r.testResultId);
+          }
+        }
         this.logger.debug(
           `Batch ${Math.floor(i / batchSize) + 1}: ${response.updated} results updated`,
         );
@@ -527,7 +577,7 @@ export class LgtmReporter implements Reporter {
     const maxChunkSize = 60000; // Stay under 64KB limit
 
     for (const [testId, lines] of this.logBuffer) {
-      const content = lines.join("");
+      const content = sanitizeSecrets(lines.join("\n"));
       if (!content.trim()) continue;
 
       const title = this.testTitleMap.get(testId) || testId;
@@ -547,6 +597,56 @@ export class LgtmReporter implements Reporter {
     }
 
     this.logger.debug(`Uploaded logs for ${this.logBuffer.size} tests`);
+  }
+
+  private async uploadAttachments(): Promise<void> {
+    if (!this.testRun || !this.project || this.attachmentBuffer.size === 0)
+      return;
+
+    let uploaded = 0;
+    for (const [testId, attachments] of this.attachmentBuffer) {
+      const testCaseId = this.testCaseMap.get(testId);
+      if (!testCaseId) continue;
+
+      const testResultId = this.testCaseToResultId.get(testCaseId);
+      if (!testResultId) continue;
+
+      for (const att of attachments) {
+        try {
+          // Validate that the attachment path is within the working directory
+          // to prevent exfiltration of arbitrary files
+          const resolved = resolve(att.path);
+          const cwd = resolve(process.cwd());
+          const rel = relative(cwd, resolved);
+          if (rel.startsWith("..") || resolve(rel) === resolved) {
+            this.logger.warn(
+              `Skipping attachment outside working directory: ${att.name}`,
+            );
+            continue;
+          }
+
+          const { readFileSync } = await import("fs");
+          const fileBuffer = readFileSync(att.path);
+          const blob = new Blob([fileBuffer], { type: att.contentType });
+          await this.client.uploadAttachment(
+            blob,
+            att.name,
+            "test_result",
+            testResultId,
+            this.project!.id,
+          );
+          uploaded++;
+        } catch (err) {
+          this.logger.debug(
+            `Failed to upload attachment "${att.name}": ${err}`,
+          );
+        }
+      }
+    }
+
+    if (uploaded > 0) {
+      this.logger.info(`Uploaded ${uploaded} attachment(s)`);
+    }
   }
 
   private async createDefectsForFailures(): Promise<void> {

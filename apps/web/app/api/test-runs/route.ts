@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { testRun, testResult, project, member } from "@/db/schema";
+import {
+  testRun,
+  testResult,
+  testCase,
+  project,
+  member,
+  cycle,
+  environment,
+  workspaceCycle,
+} from "@/db/schema";
 import { getAuthContext } from "@/lib/api-auth";
 import {
   hasTokenPermission,
@@ -155,6 +164,94 @@ export async function POST(request: NextRequest) {
 
     if (!membership) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  // Validate all testCaseIds belong to this project
+  const validCases = await db
+    .select({ id: testCase.id })
+    .from(testCase)
+    .where(
+      and(
+        eq(testCase.projectId, projectId),
+        inArray(testCase.id, testCaseIds),
+        isNull(testCase.deletedAt),
+      ),
+    );
+
+  if (validCases.length !== testCaseIds.length) {
+    return NextResponse.json(
+      { error: "One or more test cases do not belong to this project" },
+      { status: 400 },
+    );
+  }
+
+  // Validate cycleId belongs to this project (if provided)
+  if (cycleId) {
+    const validCycle = await db
+      .select({ id: cycle.id })
+      .from(cycle)
+      .where(
+        and(
+          eq(cycle.id, cycleId),
+          eq(cycle.projectId, projectId),
+          isNull(cycle.deletedAt),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!validCycle) {
+      return NextResponse.json(
+        { error: "Cycle not found in this project" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Validate environmentId belongs to this project (if provided)
+  if (environmentId) {
+    const validEnv = await db
+      .select({ id: environment.id })
+      .from(environment)
+      .where(
+        and(
+          eq(environment.id, environmentId),
+          eq(environment.projectId, projectId),
+          isNull(environment.deletedAt),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!validEnv) {
+      return NextResponse.json(
+        { error: "Environment not found in this project" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Validate workspaceCycleId belongs to this organization (if provided)
+  if (workspaceCycleId) {
+    const validWsCycle = await db
+      .select({ id: workspaceCycle.id })
+      .from(workspaceCycle)
+      .where(
+        and(
+          eq(workspaceCycle.id, workspaceCycleId),
+          eq(workspaceCycle.organizationId, proj.organizationId),
+          isNull(workspaceCycle.deletedAt),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!validWsCycle) {
+      return NextResponse.json(
+        { error: "Workspace cycle not found in this organization" },
+        { status: 400 },
+      );
     }
   }
 

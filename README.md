@@ -16,6 +16,7 @@ This is a **pnpm workspace monorepo** with the following packages:
 ## Features
 
 - **Test case management** — Create and organize test cases with steps, preconditions, priorities, and tags
+- **Shared steps** — Reusable step sequences that can be inserted into multiple test cases; managed per-team in settings
 - **Hierarchical organization** — Suites, sections (nested folders), and tags for flexible test structure
 - **Test execution** — Plan test runs, record results (pass/fail/blocked/skip), track per-step outcomes
 - **Defect tracking** — File and track bugs with severity, priority, and traceability to test cases/runs
@@ -24,15 +25,16 @@ This is a **pnpm workspace monorepo** with the following packages:
 - **CLI for agents** — `@lgtm/cli` lets AI coding agents query test cases, submit results, and file defects
 - **Playwright integration** — `@lgtm/playwright-reporter` automatically uploads test results from Playwright runs
 - **Share links** — Grant read-only access to external guests without requiring an account
-- **File attachments** — Upload images and files to test cases and results via Vercel Blob
+- **File attachments** — Upload images, videos, and files to test cases, results, defects, and comments (pluggable storage: Vercel Blob or S3-compatible)
 - **Structured logging** — Production-grade logging with Pino, client-to-server log aggregation, and sensitive data redaction
 
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router), React 19, TypeScript
-- **Database:** Neon serverless PostgreSQL via Drizzle ORM
+- **Database:** PostgreSQL via Drizzle ORM (NeonDB serverless in production, standard PostgreSQL for local dev)
 - **Auth:** Better Auth (email/password + organization plugin for RBAC)
-- **Storage:** Vercel Blob for file uploads
+- **Storage:** Pluggable — Vercel Blob (production) or S3-compatible (SeaweedFS/MinIO for local dev)
+- **Local dev:** Docker Compose with PostgreSQL 18 + SeaweedFS
 - **Logging:** Pino logger with correlation IDs and automatic sensitive data redaction
 - **Styling:** Tailwind CSS 4, shadcn/ui, Lucide icons
 - **CLI:** Commander.js, Winston, cli-table3
@@ -43,10 +45,64 @@ This is a **pnpm workspace monorepo** with the following packages:
 
 - Node.js 20+
 - pnpm 9+
-- A [Neon](https://neon.tech) PostgreSQL database
-- A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store (for file uploads)
+- Docker and Docker Compose (for local development)
+- Or: a [Neon](https://neon.tech) PostgreSQL database + [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store (for cloud setup)
 
-### Setup
+### Local Development (Docker)
+
+The fastest way to get started — no cloud accounts needed.
+
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+2. Start PostgreSQL and SeaweedFS:
+
+```bash
+pnpm docker:up
+```
+
+3. Copy environment variables and configure for local dev:
+
+```bash
+cp apps/web/.env.local.example apps/web/.env.local
+```
+
+Set these values in `.env.local`:
+
+```bash
+DEPLOYMENT_ENV=dev
+DATABASE_URL=postgresql://lgtm:lgtm@localhost:5432/lgtm
+BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters-long
+BETTER_AUTH_URL=http://localhost:3000
+STORAGE_PROVIDER=s3
+S3_ENDPOINT=http://localhost:8334
+S3_REGION=us-east-1
+S3_BUCKET=lgtm
+S3_ACCESS_KEY_ID=lgtm_dev_access_key
+S3_SECRET_ACCESS_KEY=lgtm_dev_secret_key
+S3_PUBLIC_URL_BASE=http://localhost:3000/storage
+```
+
+4. Push the schema to your local database:
+
+```bash
+pnpm db:push
+```
+
+5. Start the dev server:
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to get started.
+
+### Cloud Setup (Vercel + NeonDB)
+
+For production or if you prefer cloud services for development:
 
 1. Install dependencies:
 
@@ -70,10 +126,6 @@ Optional variables:
 - `NEXT_PUBLIC_REGISTRATION_OPEN` — Set to `"false"` to disable public signup (only invited users can join)
 - `RESEND_API_KEY` — Resend API key for invitation emails (falls back to console.log if not set)
 - `EMAIL_FROM` — Sender address for emails (e.g., `"LGTM <noreply@yourdomain.com>"`)
-- `LOG_LEVEL` — Logging level: `debug` | `info` | `warn` | `error` (default: `debug` in dev, `info` in prod)
-- `LOG_TO_FILE` — Set to `"true"` for file-based logging on VPS (default: `false`, logs to stdout)
-- `LOG_FILE_PATH` — Path to log file (default: `./logs/app.log`)
-- `LOG_MAX_FILES` — Days of log retention (default: `30`)
 
 3. Push the schema to your database:
 
@@ -106,6 +158,10 @@ All commands run from the repo root via pnpm workspace proxying.
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:push` | Push schema directly to DB (prototyping) |
 | `pnpm db:studio` | Open Drizzle Studio (DB browser) |
+| `pnpm docker:up` | Start local PostgreSQL + SeaweedFS |
+| `pnpm docker:down` | Stop Docker services (data preserved) |
+| `pnpm docker:reset` | Stop Docker services and delete all data |
+| `pnpm docker:logs` | Tail logs from Docker services |
 
 ## CLI (`@lgtm/cli`)
 
@@ -134,6 +190,11 @@ lgtm test-results submit --run <id> --case <id> --status passed
 
 # File a defect
 lgtm defects create --project ENG --title "Login page broken" --severity critical
+
+# Manage shared steps
+lgtm shared-steps list --project ENG
+lgtm shared-steps get <id> --json
+lgtm shared-steps create --project ENG --title "Login flow"
 ```
 
 ### Configuration

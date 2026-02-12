@@ -2,15 +2,9 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2, Plus } from "lucide-react";
+import { Calendar, Loader2, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,11 +23,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTable } from "@/components/data-table";
 import {
-  type WorkspaceCycleRow,
-  getWorkspaceCycleColumns,
-} from "./workspace-cycle-columns";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import {
+  GroupedList,
+  groupedListRowClass,
+  type ListGroup,
+} from "@/components/grouped-list";
+
+interface WorkspaceCycleRow {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  status: "planned" | "active" | "completed";
+  isCurrent: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const cycleStatuses = [
   { value: "planned", label: "Planned" },
@@ -41,7 +55,45 @@ const cycleStatuses = [
   { value: "completed", label: "Completed" },
 ] as const;
 
+function getCycleStatusDotColor(status: string) {
+  switch (status) {
+    case "active":
+      return "border-emerald-500 bg-emerald-500/20";
+    case "planned":
+      return "border-blue-500 bg-blue-500/20";
+    case "completed":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    default:
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+  }
+}
+
+function getCycleStatusLabel(status: string) {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "planned":
+      return "Planned";
+    case "completed":
+      return "Completed";
+    default:
+      return status;
+  }
+}
+
+const CYCLE_STATUS_ORDER = ["active", "planned", "completed"] as const;
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function formatTimeline(startDate: string | null, endDate: string | null) {
+  if (!startDate && !endDate) return null;
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  return `${startDate ? fmt(startDate) : "?"} → ${endDate ? fmt(endDate) : "?"}`;
+}
 
 interface WorkspaceCyclesContentProps {
   org: {
@@ -53,14 +105,12 @@ interface WorkspaceCyclesContentProps {
 }
 
 export function WorkspaceCyclesContent({ org }: WorkspaceCyclesContentProps) {
-  // Dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<WorkspaceCycleRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceCycleRow | null>(
     null,
   );
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
@@ -68,7 +118,6 @@ export function WorkspaceCyclesContent({ org }: WorkspaceCyclesContentProps) {
   const [formStatus, setFormStatus] = useState("planned");
   const [formIsCurrent, setFormIsCurrent] = useState(false);
 
-  // Async state
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -77,34 +126,21 @@ export function WorkspaceCyclesContent({ org }: WorkspaceCyclesContentProps) {
     fetcher,
   );
 
-  const columns = useMemo(
-    () =>
-      getWorkspaceCycleColumns({
-        onEdit: (cycleData) => {
-          setEditTarget(cycleData);
-          setFormName(cycleData.name);
-          setFormDescription(cycleData.description ?? "");
-          setFormStartDate(
-            cycleData.startDate
-              ? new Date(cycleData.startDate).toISOString().split("T")[0]
-              : "",
-          );
-          setFormEndDate(
-            cycleData.endDate
-              ? new Date(cycleData.endDate).toISOString().split("T")[0]
-              : "",
-          );
-          setFormStatus(cycleData.status);
-          setFormIsCurrent(cycleData.isCurrent);
-          setError("");
-        },
-        onDelete: (cycleData) => {
-          setDeleteTarget(cycleData);
-          setError("");
-        },
-      }),
-    [],
-  );
+  const groups = useMemo((): ListGroup<WorkspaceCycleRow>[] => {
+    if (!cycles) return [];
+    const map = new Map<string, WorkspaceCycleRow[]>();
+    for (const c of cycles) {
+      const list = map.get(c.status) ?? [];
+      list.push(c);
+      map.set(c.status, list);
+    }
+    return CYCLE_STATUS_ORDER.filter((s) => map.has(s)).map((s) => ({
+      key: s,
+      label: getCycleStatusLabel(s),
+      dotColor: getCycleStatusDotColor(s),
+      items: map.get(s)!,
+    }));
+  }, [cycles]);
 
   function resetForm() {
     setFormName("");
@@ -119,6 +155,25 @@ export function WorkspaceCyclesContent({ org }: WorkspaceCyclesContentProps) {
   function handleOpenCreate() {
     resetForm();
     setCreateOpen(true);
+  }
+
+  function handleOpenEdit(cycleData: WorkspaceCycleRow) {
+    setEditTarget(cycleData);
+    setFormName(cycleData.name);
+    setFormDescription(cycleData.description ?? "");
+    setFormStartDate(
+      cycleData.startDate
+        ? new Date(cycleData.startDate).toISOString().split("T")[0]
+        : "",
+    );
+    setFormEndDate(
+      cycleData.endDate
+        ? new Date(cycleData.endDate).toISOString().split("T")[0]
+        : "",
+    );
+    setFormStatus(cycleData.status);
+    setFormIsCurrent(cycleData.isCurrent);
+    setError("");
   }
 
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -319,45 +374,96 @@ export function WorkspaceCyclesContent({ org }: WorkspaceCyclesContentProps) {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Workspace Cycles
-          </h1>
-          <p className="text-muted-foreground">
-            Manage cross-team release cycles for {org.name}.
-          </p>
-        </div>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="h-4 w-4" />
-          Create cycle
+    <div className="flex min-h-svh flex-col bg-card">
+      <PageBreadcrumb items={[{ label: "Workspace Cycles" }]}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleOpenCreate}
+          className="h-7 gap-1.5 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New
         </Button>
-      </div>
+      </PageBreadcrumb>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Workspace Cycles</CardTitle>
-          <CardDescription>
-            {cycles?.length ?? 0}{" "}
-            {cycles?.length === 1 ? "cycle" : "cycles"} configured for
-            cross-team releases.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!cycles ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading...
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={cycles}
-              emptyMessage="No workspace cycles configured yet."
-            />
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex-1">
+        {!cycles ? (
+          <div className="flex items-center justify-center py-24">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <GroupedList
+            groups={groups}
+            getItemId={(c) => c.id}
+            emptyIcon={
+              <Calendar className="h-10 w-10 text-muted-foreground/40" />
+            }
+            emptyTitle="No workspace cycles configured"
+            emptyDescription="Add your first workspace cycle to organize cross-team releases."
+            emptyAction={
+              <Button size="sm" onClick={handleOpenCreate}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create Cycle
+              </Button>
+            }
+            renderRow={(cycle) => {
+              const timeline = formatTimeline(cycle.startDate, cycle.endDate);
+              return (
+                <div className={groupedListRowClass}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleOpenEdit(cycle)}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => {
+                          setDeleteTarget(cycle);
+                          setError("");
+                        }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getCycleStatusDotColor(cycle.status)}`}
+                  />
+
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {cycle.name}
+                  </span>
+
+                  <div className="flex shrink-0 items-center gap-3">
+                    {cycle.isCurrent && (
+                      <Badge variant="default" className="text-[10px] leading-none">
+                        Current
+                      </Badge>
+                    )}
+
+                    {timeline && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {timeline}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          />
+        )}
+      </div>
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

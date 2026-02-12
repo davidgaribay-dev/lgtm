@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, CheckCircle2, Loader2 } from "lucide-react";
-import { upload } from "@vercel/blob/client";
 import { authClient } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -72,12 +71,16 @@ function ProfileSection({ user }: { user: SettingsUser }) {
     setError("");
 
     try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        clientPayload: JSON.stringify({ context: "profile-image" }),
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("context", "profile-image");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
       });
-      setImageUrl(blob.url);
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setImageUrl(url);
     } catch {
       setError("Failed to upload image. Please try again.");
     } finally {

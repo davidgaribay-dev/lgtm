@@ -43,6 +43,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { CommentSection } from "@/components/comments/comment-section";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { AttachmentSection } from "@/components/attachments/attachment-section";
 import {
   getDefectStatusColor,
   getDefectStatusLabel,
@@ -578,9 +580,9 @@ function DefectDetailInner({
               </div>
             )}
 
-            {/* Comments */}
+            {/* Attachments */}
             <div className="border-t pt-6">
-              <CommentSection
+              <AttachmentSection
                 entityType="defect"
                 entityId={defect.id}
                 projectId={projectId}
@@ -588,6 +590,20 @@ function DefectDetailInner({
                 canWrite={true}
                 canDeleteAny={true}
               />
+            </div>
+
+            {/* Comments */}
+            <div className="border-t pt-6">
+              <ErrorBoundary>
+                <CommentSection
+                  entityType="defect"
+                  entityId={defect.id}
+                  projectId={projectId}
+                  currentUserId={defect.createdBy}
+                  canWrite={true}
+                  canDeleteAny={true}
+                />
+              </ErrorBoundary>
             </div>
           </div>
         </div>

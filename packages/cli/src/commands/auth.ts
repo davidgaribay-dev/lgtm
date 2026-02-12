@@ -6,6 +6,33 @@ import { handleError } from "../errors.js";
 import { createInterface } from "node:readline/promises";
 import { existsSync } from "node:fs";
 
+/** Read a line from stdin with echo suppressed (for secret input). */
+async function readSecret(prompt: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  // Mute output by replacing the write function during input
+  const origWrite = process.stdout.write;
+  let prompted = false;
+  process.stdout.write = function (
+    ...args: Parameters<typeof origWrite>
+  ): boolean {
+    // Allow the initial prompt to print, mute everything after
+    if (!prompted) {
+      prompted = true;
+      return origWrite.apply(process.stdout, args);
+    }
+    return true;
+  } as typeof origWrite;
+
+  try {
+    const value = await rl.question(prompt);
+    return value;
+  } finally {
+    process.stdout.write = origWrite;
+    process.stdout.write("\n");
+    rl.close();
+  }
+}
+
 export function registerAuthCommands(parent: Command): void {
   const auth = parent.command("auth").description("Manage authentication");
 
@@ -22,12 +49,18 @@ export function registerAuthCommands(parent: Command): void {
         });
 
         const apiUrl = await rl.question("LGTM API URL: ");
-        const apiToken = await rl.question("API Token: ");
-        const defaultProject = await rl.question(
+        rl.close();
+
+        const apiToken = await readSecret("API Token: ");
+
+        const rl2 = createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        const defaultProject = await rl2.question(
           "Default project key (optional): ",
         );
-
-        rl.close();
+        rl2.close();
 
         if (!apiUrl.trim()) {
           logger.error("API URL is required");

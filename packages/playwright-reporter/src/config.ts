@@ -17,6 +17,8 @@ export interface LgtmReporterConfig {
   autoCreateDefects?: boolean;
   /** Upload stdout/stderr as run logs. Defaults to true. */
   uploadLogs?: boolean;
+  /** Upload test attachments (screenshots, videos, traces) to LGTM. Defaults to true. */
+  uploadAttachments?: boolean;
   /** Enable verbose debug logging. Defaults to false. Falls back to LGTM_DEBUG env var. */
   debug?: boolean;
 }
@@ -31,6 +33,7 @@ export interface ResolvedConfig {
   autoCreateTestCases: boolean;
   autoCreateDefects: boolean;
   uploadLogs: boolean;
+  uploadAttachments: boolean;
   debug: boolean;
 }
 
@@ -72,6 +75,7 @@ export function resolveConfig(
     autoCreateTestCases: options.autoCreateTestCases !== false,
     autoCreateDefects: options.autoCreateDefects === true,
     uploadLogs: options.uploadLogs !== false,
+    uploadAttachments: options.uploadAttachments !== false,
     debug:
       options.debug === true || process.env.LGTM_DEBUG === "true",
   };

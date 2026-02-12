@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lgtm
+      POSTGRES_PASSWORD: lgtm
+      POSTGRES_DB: lgtm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lgtm -d lgtm"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    restart: unless-stopped
+    command: >
+      server -dir=/data
+      -s3
+      -s3.port=8333
+      -s3.config=/etc/seaweedfs/s3.json
+      -s3.allowedOrigins=http://localhost:3000
+      -master.volumeSizeLimitMB=100
+    ports:
+      - "8334:8333"
+      - "9334:9333"
+    volumes:
+      - seaweedfs_data:/data
+      - ./docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://$(hostname -i):9333/cluster/status"]
+      interval: 5s
+      timeout: 5s
+      start_period: 15s
+      retries: 10
+
+  seaweedfs-init:
+    image: chrislusf/seaweedfs:latest
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Creating lgtm bucket..."
+        echo "s3.bucket.create -name lgtm" | weed shell -master=seaweedfs:9333
+        echo "Bucket 'lgtm' ready."
+
+volumes:
+  pgdata:
+  seaweedfs_data:

@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Camera, Loader2 } from "lucide-react";
-import { upload } from "@vercel/blob/client";
 import { authClient } from "@/lib/auth-client";
 import { MIN_PASSWORD_LENGTH } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -46,14 +45,14 @@ export function SignupForm() {
 
     setIsPending(true);
 
-    // Sign up — set onboardingStep for normal signups, omit for invite-based
+    // Sign up — set onboardingStep for normal signups, omit for invite-based.
+    // Type assertion needed: onboardingStep is a custom user field not in Better Auth's base types.
     const { error: signUpError } = await authClient.signUp.email({
       email,
       password,
       name,
       ...(inviteId ? {} : { onboardingStep: "workspace" }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    } as Parameters<typeof authClient.signUp.email>[0]);
 
     if (signUpError) {
       setError(
@@ -67,11 +66,14 @@ export function SignupForm() {
     if (selectedFile) {
       setIsUploading(true);
       try {
-        await upload(selectedFile.name, selectedFile, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          clientPayload: JSON.stringify({ context: "profile-image" }),
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("context", "profile-image");
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
         });
+        if (!res.ok) throw new Error("Upload failed");
       } catch {
         // Non-blocking: photo upload failure shouldn't block signup
         console.error("Photo upload failed during signup");

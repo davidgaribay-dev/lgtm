@@ -5,7 +5,6 @@ import { eq, and, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { organization, member } from "@/db/schema";
-import { PageContainer } from "@/components/page-container";
 import { WorkspaceCyclesContent } from "./workspace-cycles-content";
 
 export const metadata: Metadata = {
@@ -52,8 +51,6 @@ export default async function WorkspaceCyclesPage({
   }
 
   return (
-    <PageContainer>
-      <WorkspaceCyclesContent org={adminOrg} />
-    </PageContainer>
+    <WorkspaceCyclesContent org={adminOrg} />
   );
 }

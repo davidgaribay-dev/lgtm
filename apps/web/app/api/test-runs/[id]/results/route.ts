@@ -182,5 +182,9 @@ export async function POST(
   return NextResponse.json({
     updated: updated.length,
     suggestedRunStatus: suggestedStatus,
+    results: updated.map((r) => ({
+      testCaseId: r.testCaseId,
+      testResultId: r.id,
+    })),
   });
 }

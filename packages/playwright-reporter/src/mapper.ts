@@ -1,6 +1,41 @@
 import type { TestResultStatus } from "@lgtm/shared";
 
 /**
+ * Patterns that commonly appear in test output and may contain secrets.
+ * Applied before uploading logs and error comments to the LGTM API.
+ */
+const SECRET_PATTERNS: Array<{ pattern: RegExp; replacement: string }> = [
+  // LGTM tokens
+  { pattern: /lgtm_v1_[a-zA-Z0-9_-]+/g, replacement: "lgtm_v1_[REDACTED]" },
+  // Bearer tokens
+  { pattern: /Bearer\s+[a-zA-Z0-9._\-/+=]+/g, replacement: "Bearer [REDACTED]" },
+  // GitHub tokens
+  { pattern: /gh[pousr]_[A-Za-z0-9_]{36,}/g, replacement: "[REDACTED_GH_TOKEN]" },
+  // OpenAI / Anthropic tokens
+  { pattern: /sk-[a-zA-Z0-9]{20,}/g, replacement: "[REDACTED_API_KEY]" },
+  // AWS access keys
+  { pattern: /AKIA[0-9A-Z]{16}/g, replacement: "[REDACTED_AWS_KEY]" },
+  // Generic key=value secret patterns (password, secret, token, api_key in env-like assignments)
+  { pattern: /(?<=(?:password|secret|token|api_key|apikey|api_secret|access_token|auth_token)\s*[=:]\s*["']?)[^\s"']{8,}/gi, replacement: "[REDACTED]" },
+  // Connection strings with embedded passwords
+  { pattern: /(?<=:\/\/[^:]+:)[^@\s]+(?=@)/g, replacement: "[REDACTED]" },
+];
+
+/**
+ * Strip common secret patterns from text before uploading to the LGTM API.
+ * This prevents accidental exposure of credentials in test logs and error messages.
+ */
+export function sanitizeSecrets(text: string): string {
+  let result = text;
+  for (const { pattern, replacement } of SECRET_PATTERNS) {
+    // Reset lastIndex for global regexes
+    pattern.lastIndex = 0;
+    result = result.replace(pattern, replacement);
+  }
+  return result;
+}
+
+/**
  * Map Playwright result status to LGTM test result status.
  *
  * Playwright statuses: "passed" | "failed" | "timedOut" | "skipped" | "interrupted"
@@ -82,7 +117,8 @@ export function formatErrorComment(error?: {
     parts.push(`\n--- Stack ---\n${error.stack}`);
   }
 
-  return parts.length > 0 ? parts.join("\n") : undefined;
+  if (parts.length === 0) return undefined;
+  return sanitizeSecrets(parts.join("\n"));
 }
 
 /** Metadata content type used for lgtm() annotations. */

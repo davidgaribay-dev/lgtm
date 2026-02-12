@@ -18,11 +18,23 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
+interface CreatedToken {
+  id: string;
+  name: string;
+  prefix: string;
+  scopeType: string;
+  scopeStatus: string;
+  createdAt: string;
+  expiresAt: string | null;
+  token?: string;
+  requiresApproval?: boolean;
+}
+
 interface CreateTokenDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationId: string;
-  onTokenCreated: (token: any) => void;
+  onTokenCreated: (token: CreatedToken) => void;
   defaultProjectIds?: string[];
   teams?: Array<{ id: string; name: string }>;
   isAdmin?: boolean;
@@ -38,6 +50,7 @@ const PERMISSIONS = {
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
 } as const;
@@ -51,6 +64,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   testCase: "Test Cases",
   testRun: "Test Runs",
   testPlan: "Test Plans",
+  sharedStep: "Shared Steps",
   shareLink: "Share Links",
   comment: "Comments",
 };
@@ -145,8 +159,8 @@ export function CreateTokenDialog({
       setSelectedProjects(defaultProjectIds || []);
       setSelectedPermissions(new Set());
       setExpiresAt("");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create token");
     } finally {
       setLoading(false);
     }

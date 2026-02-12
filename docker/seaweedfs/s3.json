@@ -1,0 +1,26 @@
+{
+  "identities": [
+    {
+      "name": "lgtm_admin",
+      "credentials": [
+        {
+          "accessKey": "lgtm_dev_access_key",
+          "secretKey": "lgtm_dev_secret_key"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Write",
+        "List",
+        "Tagging"
+      ]
+    },
+    {
+      "name": "anonymous",
+      "actions": [
+        "Read"
+      ]
+    }
+  ]
+}

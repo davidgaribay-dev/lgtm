@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { LgtmApiClient, TEST_RESULT_STATUSES } from "@lgtm/shared";
 import type { BulkResultEntry, TestResultStatus } from "@lgtm/shared";
 import { readFileSync } from "node:fs";
+import { resolve, sep } from "node:path";
 import { resolveConfig } from "../config.js";
 import { createLogger } from "../logger.js";
 import { handleError, AuthError, CliError } from "../errors.js";
@@ -111,9 +112,18 @@ export function registerTestResultsCommands(parent: Command): void {
           );
         }
 
+        // Validate file path is within current working directory
+        const resolvedPath = resolve(cmdOpts.file);
+        const cwd = resolve(process.cwd());
+        if (!resolvedPath.startsWith(cwd + sep) && resolvedPath !== cwd) {
+          throw new CliError(
+            "Results file must be within the current working directory",
+          );
+        }
+
         let results: BulkResultEntry[];
         try {
-          const content = readFileSync(cmdOpts.file, "utf-8");
+          const content = readFileSync(resolvedPath, "utf-8");
           const parsed = JSON.parse(content);
           results = Array.isArray(parsed) ? parsed : parsed.results;
         } catch (err) {
@@ -126,6 +136,29 @@ export function registerTestResultsCommands(parent: Command): void {
           throw new CliError(
             "Results file must contain a JSON array of result entries",
           );
+        }
+
+        // Validate each result entry has the minimum required fields
+        for (let i = 0; i < results.length; i++) {
+          const entry = results[i];
+          if (!entry || typeof entry !== "object") {
+            throw new CliError(
+              `Invalid result entry at index ${i}: must be an object`,
+            );
+          }
+          if (!entry.testCaseId || typeof entry.testCaseId !== "string") {
+            throw new CliError(
+              `Invalid result entry at index ${i}: missing or invalid "testCaseId"`,
+            );
+          }
+          if (
+            !entry.status ||
+            !TEST_RESULT_STATUSES.includes(entry.status as TestResultStatus)
+          ) {
+            throw new CliError(
+              `Invalid result entry at index ${i}: missing or invalid "status" (must be one of: ${TEST_RESULT_STATUSES.join(", ")})`,
+            );
+          }
         }
 
         const client = new LgtmApiClient({

@@ -2,6 +2,29 @@ import { test } from "@playwright/test";
 import { LGTM_METADATA_CONTENT_TYPE, type LgtmMetadata } from "./mapper.js";
 
 /**
+ * Registry of test title → metadata mappings.
+ * A single beforeEach hook is registered once and looks up metadata from this map,
+ * avoiding O(n²) behavior from registering a hook per test.
+ */
+const metadataRegistry = new Map<string, LgtmMetadata>();
+let hookRegistered = false;
+
+function ensureHookRegistered(): void {
+  if (hookRegistered) return;
+  hookRegistered = true;
+
+  test.beforeEach(async ({}, testInfo) => {
+    const metadata = metadataRegistry.get(testInfo.title);
+    if (metadata) {
+      await testInfo.attach("lgtm-metadata", {
+        body: Buffer.from(JSON.stringify(metadata)),
+        contentType: LGTM_METADATA_CONTENT_TYPE,
+      });
+    }
+  });
+}
+
+/**
  * Annotate a Playwright test with an LGTM test case ID or case key.
  *
  * This embeds metadata as a Playwright attachment that the LGTM reporter
@@ -42,15 +65,8 @@ export function lgtm(
     }
   }
 
-  // Register a beforeEach hook that attaches metadata to the test
-  test.beforeEach(async ({}, testInfo) => {
-    if (testInfo.title === title) {
-      await testInfo.attach("lgtm-metadata", {
-        body: Buffer.from(JSON.stringify(metadata)),
-        contentType: LGTM_METADATA_CONTENT_TYPE,
-      });
-    }
-  });
+  metadataRegistry.set(title, metadata);
+  ensureHookRegistered();
 
   return title;
 }

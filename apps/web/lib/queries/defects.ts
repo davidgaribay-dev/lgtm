@@ -10,8 +10,11 @@ import {
 } from "@/db/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
 
-/** Fetch all defects for a project with joined entity names. */
-export async function getProjectDefects(projectId: string) {
+/** Fetch defects for a project with joined entity names. */
+export async function getProjectDefects(
+  projectId: string,
+  { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+) {
   const assigneeUser = db
     .select({ id: user.id, name: user.name, image: user.image })
     .from(user)
@@ -51,7 +54,9 @@ export async function getProjectDefects(projectId: string) {
     .where(
       and(eq(defect.projectId, projectId), isNull(defect.deletedAt)),
     )
-    .orderBy(desc(defect.createdAt));
+    .orderBy(desc(defect.createdAt))
+    .limit(limit)
+    .offset(offset);
 }
 
 /** Get a single defect with all related entity names. */

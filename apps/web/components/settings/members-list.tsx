@@ -2,16 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, MoreHorizontal, Plus, Users } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,21 +18,110 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTable } from "@/components/data-table";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import {
-  type MemberRow,
-  type InvitationRow,
-  getMemberColumns,
-  getInvitationColumns,
-} from "./columns";
+  GroupedList,
+  groupedListRowClass,
+  formatRelativeDate,
+  type ListGroup,
+} from "@/components/grouped-list";
 
-interface MembersContentProps {
+// ----- Types -----
+
+export interface MemberRow {
+  memberId: string;
+  userId: string;
+  name: string;
+  email: string;
+  image: string | null;
+  role: string;
+  joinedAt: Date;
+}
+
+export interface InvitationRow {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: Date | null;
+  createdAt: Date;
+}
+
+type ListItem =
+  | { kind: "member"; data: MemberRow }
+  | { kind: "invitation"; data: InvitationRow };
+
+// ----- Helpers -----
+
+const ROLE_ORDER = ["owner", "admin", "member", "viewer"] as const;
+
+function getRoleDotColor(role: string) {
+  switch (role) {
+    case "owner":
+      return "border-emerald-500 bg-emerald-500/20";
+    case "admin":
+      return "border-blue-500 bg-blue-500/20";
+    case "member":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    case "viewer":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    case "pending":
+      return "border-amber-500 bg-amber-500/20";
+    default:
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+  }
+}
+
+function getRoleLabel(role: string) {
+  switch (role) {
+    case "owner":
+      return "Owners";
+    case "admin":
+      return "Admins";
+    case "member":
+      return "Members";
+    case "viewer":
+      return "Viewers";
+    case "pending":
+      return "Pending Invitations";
+    default:
+      return role;
+  }
+}
+
+const roleBadgeVariant: Record<string, "default" | "secondary" | "outline"> = {
+  owner: "default",
+  admin: "secondary",
+  member: "outline",
+  viewer: "outline",
+};
+
+function getInitials(name: string) {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+const assignableRoles = ["admin", "member", "viewer"] as const;
+
+// ----- Component -----
+
+interface MembersListProps {
   org: {
     id: string;
     name: string;
@@ -49,14 +133,12 @@ interface MembersContentProps {
   currentUserId: string;
 }
 
-const assignableRoles = ["admin", "member", "viewer"] as const;
-
-export function MembersContent({
+export function MembersList({
   org,
   members,
   pendingInvitations,
   currentUserId,
-}: MembersContentProps) {
+}: MembersListProps) {
   const router = useRouter();
 
   // Dialog state
@@ -79,42 +161,37 @@ export function MembersContent({
 
   const ownerCount = members.filter((m) => m.role === "owner").length;
 
-  const memberColumns = useMemo(
-    () =>
-      getMemberColumns({
-        currentUserId,
-        ownerCount,
-        onChangeRole: (m) => {
-          setRoleTarget(m);
-          setNewRole(m.role);
-          setActionError("");
-        },
-        onRemove: (m) => {
-          setRemoveTarget(m);
-          setActionError("");
-        },
-      }),
-    [currentUserId, ownerCount],
-  );
+  const groups = useMemo((): ListGroup<ListItem>[] => {
+    const roleMap = new Map<string, ListItem[]>();
+    for (const m of members) {
+      const list = roleMap.get(m.role) ?? [];
+      list.push({ kind: "member", data: m });
+      roleMap.set(m.role, list);
+    }
 
-  const invitationColumns = useMemo(
-    () =>
-      getInvitationColumns({
-        onCancel: async (inv) => {
-          setActionLoading(true);
-          setActionError("");
-          const { error } = await authClient.organization.cancelInvitation({
-            invitationId: inv.id,
-          });
-          if (error) {
-            setActionError(error.message || "Failed to cancel invitation.");
-          }
-          setActionLoading(false);
-          router.refresh();
-        },
-      }),
-    [router],
-  );
+    const result: ListGroup<ListItem>[] = ROLE_ORDER.filter((r) =>
+      roleMap.has(r),
+    ).map((r) => ({
+      key: r,
+      label: getRoleLabel(r),
+      dotColor: getRoleDotColor(r),
+      items: roleMap.get(r)!,
+    }));
+
+    if (pendingInvitations.length > 0) {
+      result.push({
+        key: "pending",
+        label: getRoleLabel("pending"),
+        dotColor: getRoleDotColor("pending"),
+        items: pendingInvitations.map((inv) => ({
+          kind: "invitation" as const,
+          data: inv,
+        })),
+      });
+    }
+
+    return result;
+  }, [members, pendingInvitations]);
 
   async function handleInvite(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -183,58 +260,168 @@ export function MembersContent({
     router.refresh();
   }
 
-  return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Members</h1>
-          <p className="text-muted-foreground">
-            Manage members and invitations for {org.name}.
-          </p>
+  async function handleCancelInvitation(inv: InvitationRow) {
+    const { error } = await authClient.organization.cancelInvitation({
+      invitationId: inv.id,
+    });
+    if (error) {
+      setActionError(error.message || "Failed to cancel invitation.");
+    }
+    router.refresh();
+  }
+
+  function renderRow(item: ListItem) {
+    if (item.kind === "member") {
+      return renderMemberRow(item.data);
+    }
+    return renderInvitationRow(item.data);
+  }
+
+  function renderMemberRow(m: MemberRow) {
+    const isSelf = m.userId === currentUserId;
+    const isSoleOwner = m.role === "owner" && ownerCount <= 1;
+    const canAct = !isSelf && !isSoleOwner;
+
+    return (
+      <div className={groupedListRowClass}>
+        {canAct ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem
+                onClick={() => {
+                  setRoleTarget(m);
+                  setNewRole(m.role);
+                  setActionError("");
+                }}
+              >
+                Change role
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => {
+                  setRemoveTarget(m);
+                  setActionError("");
+                }}
+              >
+                Remove member
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <span className="w-5 shrink-0" />
+        )}
+
+        <Avatar className="h-6 w-6">
+          <AvatarImage src={m.image ?? undefined} alt={m.name} />
+          <AvatarFallback className="text-[10px]">
+            {getInitials(m.name)}
+          </AvatarFallback>
+        </Avatar>
+
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {m.name}
+          {m.userId === currentUserId && (
+            <span className="ml-1 text-muted-foreground">(you)</span>
+          )}
+        </span>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-xs text-muted-foreground">{m.email}</span>
+          <Badge
+            variant={roleBadgeVariant[m.role] ?? "outline"}
+            className="capitalize text-[10px] leading-none"
+          >
+            {m.role}
+          </Badge>
+          <span className="w-12 text-right text-[11px] text-muted-foreground">
+            {formatRelativeDate(m.joinedAt)}
+          </span>
         </div>
-        <Button onClick={() => setInviteOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Invite member
-        </Button>
       </div>
+    );
+  }
 
-      {/* Members table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Team members</CardTitle>
-          <CardDescription>
-            {members.length} {members.length === 1 ? "member" : "members"} in
-            this workspace.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DataTable
-            columns={memberColumns}
-            data={members}
-            emptyMessage="No members found."
-          />
-        </CardContent>
-      </Card>
+  function renderInvitationRow(inv: InvitationRow) {
+    return (
+      <div className={groupedListRowClass}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => handleCancelInvitation(inv)}
+            >
+              Revoke invitation
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      {/* Pending invitations */}
-      {pendingInvitations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending invitations</CardTitle>
-            <CardDescription>
-              {pendingInvitations.length} pending{" "}
-              {pendingInvitations.length === 1 ? "invitation" : "invitations"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={invitationColumns}
-              data={pendingInvitations}
-              emptyMessage="No pending invitations."
-            />
-          </CardContent>
-        </Card>
-      )}
+        <span className="min-w-0 flex-1 truncate font-medium">{inv.email}</span>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <Badge
+            variant={roleBadgeVariant[inv.role] ?? "outline"}
+            className="capitalize text-[10px] leading-none"
+          >
+            {inv.role}
+          </Badge>
+          <span className="w-12 text-right text-[11px] text-muted-foreground">
+            {formatRelativeDate(inv.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-svh flex-col bg-background">
+      <PageBreadcrumb items={[{ label: "Members" }]}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setInviteOpen(true)}
+          className="h-7 gap-1.5 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Invite
+        </Button>
+      </PageBreadcrumb>
+
+      <div className="flex-1">
+        <GroupedList
+          groups={groups}
+          getItemId={(item) =>
+            item.kind === "member" ? item.data.memberId : item.data.id
+          }
+          emptyIcon={
+            <Users className="h-10 w-10 text-muted-foreground/40" />
+          }
+          emptyTitle="No members"
+          emptyDescription="Invite members to join this workspace."
+          emptyAction={
+            <Button size="sm" onClick={() => setInviteOpen(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Invite member
+            </Button>
+          }
+          renderRow={renderRow}
+        />
+      </div>
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>

@@ -2,6 +2,20 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  async rewrites() {
+    // In dev mode, proxy /storage/* to SeaweedFS so the browser doesn't need
+    // direct access to the SeaweedFS port (important for remote dev servers).
+    if (process.env.DEPLOYMENT_ENV === "dev" && process.env.S3_ENDPOINT) {
+      const bucket = process.env.S3_BUCKET || "lgtm";
+      return [
+        {
+          source: "/storage/:path*",
+          destination: `${process.env.S3_ENDPOINT}/${bucket}/:path*`,
+        },
+      ];
+    }
+    return [];
+  },
   async headers() {
     return [
       {

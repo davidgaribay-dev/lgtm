@@ -75,14 +75,17 @@ export function resolveConfig(flags: CliFlags = {}): CliConfig {
 export function saveConfig(config: Partial<CliConfig>): void {
   const configDir = getConfigDir();
   if (!existsSync(configDir)) {
-    mkdirSync(configDir, { recursive: true });
+    mkdirSync(configDir, { recursive: true, mode: 0o700 });
   }
 
   const configPath = join(configDir, "config.json");
   const existing = loadUserConfig();
   const merged = { ...existing, ...config };
 
-  writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+  writeFileSync(configPath, JSON.stringify(merged, null, 2) + "\n", {
+    encoding: "utf-8",
+    mode: 0o600,
+  });
 }
 
 /** Get the config file path for display */

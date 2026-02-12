@@ -169,5 +169,14 @@ export async function resolveProjectId(
       .then((rows) => rows[0] ?? null);
     return row?.projectId ?? null;
   }
+  if (entityType === "comment") {
+    const row = await db
+      .select({ projectId: comment.projectId })
+      .from(comment)
+      .where(and(eq(comment.id, entityId), isNull(comment.deletedAt)))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+    return row?.projectId ?? null;
+  }
   return null;
 }

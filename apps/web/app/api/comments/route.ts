@@ -14,6 +14,7 @@ import {
 } from "@/lib/queries/comments";
 import { getTeamMembers } from "@/lib/queries/team-members";
 import { isValidEntityType, parseMentions, VALID_ENTITY_TYPES } from "@/lib/comment-utils";
+import { MAX_COMMENT_LENGTH } from "@lgtm/shared";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
@@ -136,6 +137,13 @@ export async function POST(request: NextRequest) {
   if (!entityType || !entityId || !commentBody?.trim()) {
     return NextResponse.json(
       { error: "entityType, entityId, and body are required" },
+      { status: 400 },
+    );
+  }
+
+  if (commentBody.length > MAX_COMMENT_LENGTH) {
+    return NextResponse.json(
+      { error: `Comment body must be ${MAX_COMMENT_LENGTH} characters or fewer` },
       { status: 400 },
     );
   }

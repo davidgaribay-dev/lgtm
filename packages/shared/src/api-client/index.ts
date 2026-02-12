@@ -17,6 +17,14 @@ import type {
   Project,
   TestRunLog,
   AppendLogRequest,
+  Attachment,
+  SharedStep,
+  SharedStepAction,
+  SharedStepWithActions,
+  CreateSharedStepRequest,
+  UpdateSharedStepRequest,
+  CreateSharedStepActionRequest,
+  UpdateSharedStepActionRequest,
 } from "../types/index.js";
 import { LgtmApiError } from "./errors.js";
 
@@ -29,11 +37,31 @@ export interface LgtmApiClientOptions {
 
 export class LgtmApiClient {
   private readonly baseUrl: string;
-  private readonly apiToken: string;
+  private readonly apiToken!: string;
 
   constructor(options: LgtmApiClientOptions) {
+    // Validate URL scheme
+    let parsed: URL;
+    try {
+      parsed = new URL(options.baseUrl);
+    } catch {
+      throw new Error(`Invalid API URL: ${options.baseUrl}`);
+    }
+    if (!["https:", "http:"].includes(parsed.protocol)) {
+      throw new Error(
+        `API URL must use https:// or http:// protocol, got: ${parsed.protocol}`,
+      );
+    }
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
-    this.apiToken = options.apiToken;
+
+    // Store token as non-enumerable to prevent accidental exposure via
+    // JSON.stringify() or console.log()
+    Object.defineProperty(this, "apiToken", {
+      value: options.apiToken,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
   }
 
   private async request<T>(
@@ -44,20 +72,72 @@ export class LgtmApiClient {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiToken}`,
-      "Content-Type": "application/json",
     };
-
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: body != null ? JSON.stringify(body) : undefined,
-    });
-
-    if (!response.ok) {
-      throw await LgtmApiError.fromResponse(response);
+    if (body != null) {
+      headers["Content-Type"] = "application/json";
     }
 
-    return response.json() as Promise<T>;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers,
+        body: body != null ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw await LgtmApiError.fromResponse(response);
+      }
+
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new LgtmApiError(
+          `Expected JSON response but received Content-Type: ${contentType}`,
+          response.status,
+        );
+      }
+
+      return response.json() as Promise<T>;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private async requestFormData<T>(
+    path: string,
+    formData: FormData,
+  ): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.apiToken}` },
+        body: formData,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw await LgtmApiError.fromResponse(response);
+      }
+
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new LgtmApiError(
+          `Expected JSON response but received Content-Type: ${contentType}`,
+          response.status,
+        );
+      }
+
+      return response.json() as Promise<T>;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   // ── Projects (Teams) ──────────────────────────────────────────────
@@ -187,6 +267,118 @@ export class LgtmApiClient {
     return this.request<Cycle[]>(
       "GET",
       `/api/cycles?projectId=${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  // ── Attachments ─────────────────────────────────────────────────
+
+  async uploadAttachment(
+    file: Blob,
+    fileName: string,
+    entityType: string,
+    entityId: string,
+    projectId: string,
+  ): Promise<Attachment> {
+    const formData = new FormData();
+    formData.append("file", file, fileName);
+    formData.append("entityType", entityType);
+    formData.append("entityId", entityId);
+    formData.append("projectId", projectId);
+    return this.requestFormData<Attachment>("/api/attachments", formData);
+  }
+
+  async getAttachments(
+    entityType: string,
+    entityId: string,
+  ): Promise<{ attachments: Attachment[] }> {
+    return this.request<{ attachments: Attachment[] }>(
+      "GET",
+      `/api/attachments?entityType=${encodeURIComponent(entityType)}&entityId=${encodeURIComponent(entityId)}`,
+    );
+  }
+
+  async deleteAttachment(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      "DELETE",
+      `/api/attachments/${id}`,
+    );
+  }
+
+  // ── Shared Steps ──────────────────────────────────────────────────
+
+  async getSharedSteps(projectId: string): Promise<SharedStep[]> {
+    return this.request<SharedStep[]>(
+      "GET",
+      `/api/shared-steps?projectId=${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  async getSharedStep(id: string): Promise<SharedStepWithActions> {
+    return this.request<SharedStepWithActions>(
+      "GET",
+      `/api/shared-steps/${id}`,
+    );
+  }
+
+  async createSharedStep(data: CreateSharedStepRequest): Promise<SharedStep> {
+    return this.request<SharedStep>("POST", "/api/shared-steps", data);
+  }
+
+  async updateSharedStep(
+    id: string,
+    data: UpdateSharedStepRequest,
+  ): Promise<SharedStep> {
+    return this.request<SharedStep>("PUT", `/api/shared-steps/${id}`, data);
+  }
+
+  async deleteSharedStep(id: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      "DELETE",
+      `/api/shared-steps/${id}`,
+    );
+  }
+
+  async createSharedStepAction(
+    sharedStepId: string,
+    data: CreateSharedStepActionRequest,
+  ): Promise<SharedStepAction> {
+    return this.request<SharedStepAction>(
+      "POST",
+      `/api/shared-steps/${sharedStepId}/actions`,
+      data,
+    );
+  }
+
+  async updateSharedStepAction(
+    sharedStepId: string,
+    actionId: string,
+    data: UpdateSharedStepActionRequest,
+  ): Promise<SharedStepAction> {
+    return this.request<SharedStepAction>(
+      "PUT",
+      `/api/shared-steps/${sharedStepId}/actions/${actionId}`,
+      data,
+    );
+  }
+
+  async deleteSharedStepAction(
+    sharedStepId: string,
+    actionId: string,
+  ): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      "DELETE",
+      `/api/shared-steps/${sharedStepId}/actions/${actionId}`,
+    );
+  }
+
+  async reorderSharedStepActions(
+    sharedStepId: string,
+    actionIds: string[],
+  ): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(
+      "PUT",
+      `/api/shared-steps/${sharedStepId}/actions/reorder`,
+      { actionIds },
     );
   }
 }

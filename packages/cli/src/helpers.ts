@@ -13,9 +13,8 @@ export async function resolveProjectId(
   );
 
   if (!match) {
-    const available = teams.map((t) => t.key).join(", ");
     throw new NotFoundError(
-      `Project "${projectKey}" not found. Available projects: ${available || "none"}`,
+      `Project "${projectKey}" not found. Run "lgtm projects list" to see available projects.`,
     );
   }
 
@@ -34,9 +33,8 @@ export async function resolveEnvironmentId(
   );
 
   if (!match) {
-    const available = envs.map((e) => e.name).join(", ");
     throw new NotFoundError(
-      `Environment "${envName}" not found. Available: ${available || "none"}`,
+      `Environment "${envName}" not found. Run "lgtm environments list" to see available environments.`,
     );
   }
 
@@ -55,9 +53,8 @@ export async function resolveCycleId(
   );
 
   if (!match) {
-    const available = cycles.map((c) => c.name).join(", ");
     throw new NotFoundError(
-      `Cycle "${cycleName}" not found. Available: ${available || "none"}`,
+      `Cycle "${cycleName}" not found. Run "lgtm cycles list" to see available cycles.`,
     );
   }
 

@@ -249,3 +249,61 @@ export function formatTestCaseDetail(
     console.log(table.toString());
   }
 }
+
+export function formatSharedStepsTable(
+  steps: Array<Record<string, unknown>>,
+): Table.Table {
+  const table = new Table({
+    head: ["ID", "Title", "Status", "Description", "Updated"],
+    style: { head: ["cyan"] },
+  });
+
+  for (const s of steps) {
+    table.push([
+      truncate(String(s.id || ""), 8),
+      truncate(String(s.title || ""), 40),
+      statusColor(String(s.status || "")),
+      truncate(String(s.description || ""), 30),
+      s.updatedAt
+        ? new Date(String(s.updatedAt)).toLocaleDateString()
+        : "",
+    ]);
+  }
+
+  return table;
+}
+
+export function formatSharedStepDetail(
+  step: Record<string, unknown>,
+  actions: Array<Record<string, unknown>>,
+): void {
+  console.log(chalk.bold(`\nShared Step: ${step.title}`));
+  console.log(
+    `ID: ${truncate(String(step.id || ""), 8)}  Status: ${statusColor(String(step.status || ""))}`,
+  );
+
+  if (step.description) {
+    console.log(`\nDescription:\n${step.description}`);
+  }
+
+  if (actions.length > 0) {
+    console.log(chalk.bold("\nActions:"));
+    const table = new Table({
+      head: ["#", "Action", "Data", "Expected Result"],
+      style: { head: ["cyan"] },
+    });
+
+    for (const a of actions) {
+      table.push([
+        String(a.stepOrder ?? ""),
+        truncate(String(a.action || ""), 40),
+        truncate(String(a.data || ""), 25),
+        truncate(String(a.expectedResult || ""), 30),
+      ]);
+    }
+
+    console.log(table.toString());
+  } else {
+    console.log("\nNo actions defined.");
+  }
+}

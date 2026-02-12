@@ -44,7 +44,7 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/(app)/[workspaceSlug]/[teamKey]/settings/` — team settings pages (overview, members, tokens); requires team admin/owner permissions
 - `app/onboarding/` — onboarding flow for new users (workspace creation, team invitations, first team creation); requires auth, redirects to dashboard when complete
 - `app/api/auth/[...all]/route.ts` — Better Auth catch-all
-- `app/api/upload/route.ts` — Vercel Blob upload endpoint
+- `app/api/upload/route.ts` — file upload endpoint (pluggable storage backend via `lib/storage/`)
 - `app/api/logs/route.ts` — Client log ingestion endpoint (POST batched logs from browser)
 - `app/api/check-slug/route.ts` — Organization slug uniqueness check
 - `app/api/check-team-key/route.ts` — Team key availability check (scoped to org)
@@ -69,6 +69,11 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/api/test-cases/[id]/clone/route.ts` — POST clone a test case
 - `app/api/test-steps/route.ts` — Test step POST (create)
 - `app/api/test-steps/[id]/route.ts` — Test step PUT (update) + DELETE
+- `app/api/shared-steps/route.ts` — Shared steps: GET (list by projectId) + POST (create); supports token auth (`sharedStep:read`, `sharedStep:create`)
+- `app/api/shared-steps/[id]/route.ts` — Shared step: GET (with actions) + PUT (update title/description/status) + DELETE (soft-delete); supports token auth (`sharedStep:read`, `sharedStep:update`, `sharedStep:delete`)
+- `app/api/shared-steps/[id]/actions/route.ts` — Shared step actions: POST (create action); supports token auth (`sharedStep:update`)
+- `app/api/shared-steps/[id]/actions/[actionId]/route.ts` — Shared step action: PUT (update) + DELETE; supports token auth (`sharedStep:update`)
+- `app/api/shared-steps/[id]/actions/reorder/route.ts` — PUT reorder shared step actions; supports token auth (`sharedStep:update`)
 - `app/api/test-suites/route.ts` — Test suite CRUD
 - `app/api/test-suites/[id]/route.ts` — Test suite update/delete
 - `app/api/test-plans/route.ts` — Test plan: GET (list by projectId) + POST (create with optional testCaseIds); supports token auth
@@ -90,6 +95,8 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/api/comments/[id]/resolve/route.ts` — POST toggle comment resolved state
 - `app/api/comments/[id]/reactions/route.ts` — POST toggle emoji reaction
 - `app/api/comments/mentions/route.ts` — GET search users for @mentions
+- `app/api/attachments/route.ts` — Attachments: GET (list by entityType + entityId) + POST (upload file with storage delegation); polymorphic across test_case, test_result, defect, test_run, comment; supports token auth (`attachment:read`, `attachment:create`)
+- `app/api/attachments/[id]/route.ts` — Attachment DELETE (removes from storage + DB); supports token auth (`attachment:delete`)
 - `app/api/tokens/route.ts` — API token CRUD: POST (create) + GET (list user's tokens)
 - `app/api/tokens/[id]/route.ts` — API token management: PATCH (update metadata) + DELETE (revoke)
 - `app/api/onboarding/advance/route.ts` — Advances onboarding step and clears session cache
@@ -139,7 +146,7 @@ Teams use short, immutable keys (similar to Jira project keys) instead of slugs 
 
 ### Data layer
 
-- **Database:** Neon serverless PostgreSQL, connected via `drizzle-orm/neon-http` (stateless HTTP per query)
+- **Database:** PostgreSQL — driver selected by `DEPLOYMENT_ENV`: `dev` uses `drizzle-orm/node-postgres` (standard TCP for local Docker PostgreSQL), unset/`prod` uses `drizzle-orm/neon-http` (stateless HTTP for Neon serverless). Conditional logic in `db/index.ts`
 - **ORM:** Drizzle ORM — schema in `db/schema.ts`, reusable column helpers in `db/columns.ts`, client exported from `db/index.ts`
 - **Migrations:** Drizzle Kit reads `drizzle.config.ts`, outputs SQL to `drizzle/`. Workflow after editing `db/schema.ts`: run `pnpm db:generate` then `pnpm db:migrate` (or `pnpm db:push` for quick prototyping)
 - **IDs:** All tables use text primary keys (UUID via `crypto.randomUUID()`)
@@ -167,7 +174,7 @@ Teams use short, immutable keys (similar to Jira project keys) instead of slugs 
 - Four roles: **owner** (full control), **admin** (all except org delete), **member** (create/edit test cases, execute runs), **viewer** (read-only)
 - Invitation system: 7-day expiry, emails sent via Resend (falls back to console.log if `RESEND_API_KEY` not set)
 - Organization plugin tables: `organization`, `member`, `invitation` + `activeOrganizationId` on `session`
-- Permission resources: `organization`, `member`, `invitation`, `project`, `environment`, `cycle`, `workspaceCycle`, `testCase`, `testRun`, `testPlan`, `defect`, `shareLink`, `projectMember`, `projectSettings`
+- Permission resources: `organization`, `member`, `invitation`, `project`, `environment`, `cycle`, `workspaceCycle`, `testCase`, `testRun`, `testPlan`, `sharedStep`, `defect`, `shareLink`, `comment`, `attachment`, `projectMember`, `projectSettings`
 
 ### Team-level RBAC
 
@@ -290,8 +297,10 @@ curl -X GET "http://localhost:3000/api/test-cases?projectId=xxx" \
 - `/api/test-repo` (GET) — tree data for test cases
 - `/api/test-runs` (GET, POST) + `/api/test-runs/[id]` (GET, PATCH, DELETE)
 - `/api/test-runs/[id]/results` (POST) — bulk submit results
+- `/api/shared-steps` (GET, POST) + `/api/shared-steps/[id]` (GET, PUT, DELETE) + `/api/shared-steps/[id]/actions` (POST) + `/api/shared-steps/[id]/actions/[actionId]` (PUT, DELETE) + `/api/shared-steps/[id]/actions/reorder` (PUT)
 - `/api/defects` (GET, POST) + `/api/defects/[id]` (GET, PATCH, DELETE)
 - `/api/defects/by-key` (GET) — lookup by human-readable key
+- `/api/attachments` (GET, POST) + `/api/attachments/[id]` (DELETE) — file attachments for any entity
 
 These routes are used by `@lgtm/cli` and `@lgtm/playwright-reporter`. Additional routes can be updated following the same pattern.
 
@@ -330,6 +339,7 @@ Two distinct flows handle user registration:
 - **Environments** (`/{slug}/{teamKey}/settings/environments`) — team environment configuration (development, staging, qa, production, custom); `PageBreadcrumb` + `GroupedList` (grouped by type); supports API token auth
 - **Test Plans** (`/{slug}/{teamKey}/settings/test-plans`) — reusable test case selections for test runs; `PageBreadcrumb` + `GroupedList` (grouped by status: active/draft/completed/archived); CRUD with wider dialogs embedding `TestCaseTreePicker` for case selection; uses SWR + `useTeamSettings()` pattern; tree data fetched lazily from `GET /api/test-repo`
 - **Cycles** (`/{slug}/{teamKey}/settings/cycles`) — team-level sprint/cycle management; `PageBreadcrumb` + `GroupedList` (grouped by status); supports API token auth
+- **Shared Steps** (`/{slug}/{teamKey}/settings/shared-steps`) — reusable step sequences that can be inserted into test cases; `PageBreadcrumb` + `GroupedList` (grouped by status: active/draft/archived); clicking a row navigates to detail view (`shared-steps/[id]`) with editable title, description (auto-save on blur), and `TestStepsEditor` for managing actions; uses SWR + `useTeamSettings()` pattern; RBAC: reads allow any org member, writes require admin/owner; supports API token auth (`sharedStep` resource)
 - **API Tokens** (`/{slug}/{teamKey}/settings/tokens`) — team-scoped API tokens; `PageBreadcrumb` + `GroupedList` (grouped by effective status); automatically scopes new tokens to the current team
 
 The sidebar forces expanded state on settings pages (both workspace and team), conditionally shows navigation items based on permissions, and detects team settings mode via path segments.
@@ -354,7 +364,9 @@ Application tables use snake_case column names and are organized into three doma
 - `test_suite` — top-level grouping of test cases
 - `section` — hierarchical folders (self-referencing `parent_id`), ordered by `display_order`
 - `test_case` — core entity (title, description, preconditions, type, priority, status, template_type, case_number, case_key); case_key format: "TEAMKEY-123" (e.g., "ENG-42"); unique per project
-- `test_step` — ordered steps within a test case (action + expected_result)
+- `test_step` — ordered steps within a test case (action + expected_result + optional `shared_step_id` FK for steps inserted from shared steps)
+- `shared_step` — reusable step sequences (title, description, project_id, status: active/draft/archived, display_order); partial unique index on `(project_id, title)` where not deleted; CRUD via `/api/shared-steps`; query helpers in `lib/queries/shared-steps.ts`
+- `shared_step_action` — ordered actions within a shared step (shared_step_id, step_order, action, data, expected_result); cascades on shared step delete
 - `tag` — labels scoped to a project (partial unique index on name where not deleted)
 - `test_case_tag` — many-to-many junction
 
@@ -384,17 +396,41 @@ Application tables use snake_case column names and are organized into three doma
 - `comment_reaction` — emoji reactions (comment_id, user_id, emoji); unique per user+comment+emoji
 
 **Cross-cutting:**
-- `attachment` — polymorphic file references (entity_type + entity_id), stores Vercel Blob URLs
+- `attachment` — polymorphic file references (entity_type + entity_id), stores storage URLs (Vercel Blob or S3)
 - `share_link` — hashed token for external guest access (read-only, with optional expiry)
 
 ### File uploads
 
-- **Vercel Blob** for image/attachment storage
-- Upload route: `app/api/upload/route.ts` — authenticates via Better Auth session, restricts to image types (jpeg/png/webp/gif), 5MB max
-- Client uploads use `upload()` from `@vercel/blob/client` with `handleUploadUrl: "/api/upload"`
-- Pass `clientPayload: JSON.stringify({ context: "profile-image" })` to auto-update `user.image` on upload completion
-- Also used for workspace logos during onboarding (context: `"workspace-logo"`)
-- Required env var: `BLOB_READ_WRITE_TOKEN`
+Pluggable storage backend via `STORAGE_PROVIDER` env var — supports **Vercel Blob** (default, for Vercel deployments) and **S3-compatible** (SeaweedFS, MinIO, AWS S3 for self-hosted).
+
+**Architecture:** Port/Adapter pattern in `lib/storage/`:
+- `types.ts` — `StorageProvider` interface (port): `put`, `delete`, `deleteMany`, `getUrl`
+- `adapters/vercel-blob.ts` — Vercel Blob adapter (uses server-side `put()`/`del()` from `@vercel/blob`)
+- `adapters/s3.ts` — S3 adapter (uses `@aws-sdk/client-s3`; `forcePathStyle: true` for SeaweedFS/MinIO)
+- `index.ts` — `getStorage()` factory/singleton, reads `STORAGE_PROVIDER` env var, lazy-loads the selected adapter
+
+**Upload flows:**
+- Profile/logo upload: `app/api/upload/route.ts` — receives FormData (file + context), authenticates via Better Auth session, validates image types (jpeg/png/webp/gif) and 4MB max, delegates to `getStorage().put()`. Context `"profile-image"` auto-updates `user.image` in DB. Context `"workspace-logo"` returns URL for client.
+- Attachment upload: `app/api/attachments/route.ts` (POST) — receives FormData (file + entityType + entityId + projectId), validates against `ALLOWED_ATTACHMENT_MIME_TYPES` and `MAX_ATTACHMENT_SIZE` from `@lgtm/shared`, stores file via `getStorage().put()`, creates `attachment` DB record. Query helpers in `lib/queries/attachments.ts`.
+- Attachment utilities: `lib/attachment-utils.ts` — `formatFileSize()`, `isImageMimeType()`, `AttachmentEntityType` type
+- Client components POST FormData, receive `{ url }` or `{ attachment }` response
+- Storage keys: `uploads/{context}/{userId}/{uuid}.{ext}` (profile/logo) or `attachments/{projectId}/{entityType}/{uuid}.{ext}` (entity attachments)
+
+**Usage in code:**
+```typescript
+import { getStorage } from "@/lib/storage";
+
+const storage = getStorage();
+const result = await storage.put(key, buffer, contentType);
+// result.url — public URL to store in DB
+```
+
+**Storage proxy (dev mode):** `next.config.ts` adds a rewrite that proxies `/storage/*` to the S3 endpoint. This allows `S3_PUBLIC_URL_BASE` to be set to `http://localhost:3000/storage`, serving uploaded files through Next.js (same-origin). This avoids CORS issues and port-forwarding problems when using remote dev servers.
+
+**Environment variables:**
+- `STORAGE_PROVIDER` — `"vercel-blob"` (default) or `"s3"`
+- For Vercel Blob: `BLOB_READ_WRITE_TOKEN`
+- For S3: `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_URL_BASE`
 
 ### UI
 
@@ -415,9 +451,13 @@ Application tables use snake_case column names and are organized into three doma
 - Shared `CommentSection` component (`components/comments/comment-section.tsx`) — threaded comments with replies, editing, resolving, emoji reactions, and @mentions; polymorphic via entityType + entityId
 - Shared auth UI components (`components/auth-ui.tsx`): `AuthInput`, `AuthLabel`, `PasswordInput`
 - Shared `TestCaseTreePicker` component (`components/test-case-tree-picker.tsx`) — reusable tree picker with checkboxes for selecting test cases; manages own expand/collapse and search state; used by test plan dialogs and create test run dialog
-- Team settings components (`components/team-settings/`) — `team-info-form.tsx`, `team-tokens-list.tsx`, `test-plans-list.tsx`, `cycles-list.tsx` using `PageBreadcrumb` + `GroupedList` layout
+- Shared `SharedStepPicker` component (`components/shared-step-picker.tsx`) — dialog for selecting a shared step to insert into a test case; searchable list of active shared steps; on selection, fetches full step with actions and calls `onSelect` callback; used by test case detail via `TestStepsEditor`'s `onInsertSharedStep` prop
+- Shared `AttachmentSection` component (`components/attachments/attachment-section.tsx`) — polymorphic attachment manager for any entity; SWR-loaded list, upload button (member+), delete button (admin/owner or own uploads); uses `AttachmentList` for display and `AttachmentUploader` for uploads
+- Shared `AttachmentList` component (`components/attachments/attachment-list.tsx`) — grid display of attachments with image thumbnails, video/file icons; clicking images/videos opens a preview dialog with navigation arrows and download button; non-previewable files open in new tab
+- Shared `AttachmentUploader` component (`components/attachments/attachment-uploader.tsx`) — drag-and-drop file upload with progress indicator; validates MIME types and file size; posts to `/api/attachments`
+- Team settings components (`components/team-settings/`) — `team-info-form.tsx`, `team-tokens-list.tsx`, `test-plans-list.tsx`, `cycles-list.tsx`, `shared-steps-list.tsx`, `shared-step-detail.tsx` using `PageBreadcrumb` + `GroupedList` layout
 
-**GroupedList pattern:** All list views (defects, test runs, environments, cycles, test plans, tokens) use a consistent layout: `PageBreadcrumb` header with "New" button → `GroupedList` body with items grouped by status. Each row uses `groupedListRowClass` and includes a hover-reveal `...` `DropdownMenu` (using `group` + `group-hover:opacity-100`), a colored status dot, the item name, and right-aligned metadata. For SWR-loaded data, show a `RefreshCw` spinner before the list renders. The test run detail page also uses `GroupedList` for its results tab (grouped by result status), combined with a collapsible properties sidebar.
+**GroupedList pattern:** All list views (defects, test runs, environments, cycles, test plans, shared steps, tokens) use a consistent layout: `PageBreadcrumb` header with "New" button → `GroupedList` body with items grouped by status. Each row uses `groupedListRowClass` and includes a hover-reveal `...` `DropdownMenu` (using `group` + `group-hover:opacity-100`), a colored status dot, the item name, and right-aligned metadata. For SWR-loaded data, show a `RefreshCw` spinner before the list renders. The test run detail page also uses `GroupedList` for its results tab (grouped by result status), combined with a collapsible properties sidebar.
 
 **Breadcrumb pattern:** All list and detail pages use `PageBreadcrumb`. Detail pages (test case, test run, test result, defect) add a `...` dropdown menu for actions (Delete, Reset to Untested) and a PanelRight toggle for the properties sidebar. Action menus are permission-guarded (e.g., delete only for owner/admin roles).
 
@@ -588,10 +628,24 @@ logClientError('API call failed', error, { endpoint: '/api/teams' });
 ## Environment Variables
 
 All in `apps/web/.env.local` (gitignored via `.env*` pattern). Copy from `.env.local.example`:
-- `DATABASE_URL` — Neon PostgreSQL connection string
+
+**Core:**
+- `DEPLOYMENT_ENV` — `"dev"` for local Docker (node-postgres), unset or `"prod"` for Vercel/NeonDB (neon-http)
+- `DATABASE_URL` — PostgreSQL connection string (Neon URL for prod, `postgresql://lgtm:lgtm@localhost:5432/lgtm` for local Docker)
 - `BETTER_AUTH_SECRET` — signing key (min 32 chars)
 - `BETTER_AUTH_URL` — app base URL
-- `BLOB_READ_WRITE_TOKEN` — Vercel Blob access token
+
+**Storage:**
+- `STORAGE_PROVIDER` — storage backend: `"vercel-blob"` (default) or `"s3"` (SeaweedFS/MinIO/AWS)
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob access token (when `STORAGE_PROVIDER=vercel-blob`)
+- `S3_ENDPOINT` — S3-compatible endpoint URL (when `STORAGE_PROVIDER=s3`, e.g. `http://localhost:8334`)
+- `S3_REGION` — S3 region (default: `us-east-1`, placeholder for SeaweedFS)
+- `S3_BUCKET` — S3 bucket name
+- `S3_ACCESS_KEY_ID` — S3 access key
+- `S3_SECRET_ACCESS_KEY` — S3 secret key
+- `S3_PUBLIC_URL_BASE` — base URL for public file access; in dev mode use `http://localhost:3000/storage` (proxied through Next.js rewrite) to avoid port-forwarding issues; in production use the direct storage URL
+
+**Optional:**
 - `NEXT_PUBLIC_REGISTRATION_OPEN` — set to `"false"` to disable public signup (default: open)
 - `RESEND_API_KEY` — Resend API key for invitation emails (optional; falls back to console.log)
 - `EMAIL_FROM` — sender address for emails (e.g. `"LGTM <noreply@yourdomain.com>"`)

@@ -36,7 +36,8 @@ src/
     ├── test-results.ts   # lgtm test-results submit | bulk
     ├── defects.ts        # lgtm defects list | get <key> | create
     ├── environments.ts   # lgtm environments list
-    └── cycles.ts         # lgtm cycles list
+    ├── cycles.ts         # lgtm cycles list
+    └── shared-steps.ts   # lgtm shared-steps list | get | create | update | delete
 ```
 
 ## CLI Usage
@@ -84,6 +85,13 @@ lgtm defects create -p ENG -t "Login broken" --severity critical
 # Environments & Cycles
 lgtm environments list -p ENG
 lgtm cycles list -p ENG
+
+# Shared Steps
+lgtm shared-steps list -p ENG           # List shared steps (filter: --status)
+lgtm shared-steps get <id>              # Get shared step with actions
+lgtm shared-steps create -p ENG -t "Login flow"  # Create shared step
+lgtm shared-steps update <id> -t "New title" -s archived  # Update fields
+lgtm shared-steps delete <id>           # Delete shared step
 ```
 
 ## Configuration

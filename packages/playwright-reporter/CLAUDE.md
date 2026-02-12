@@ -63,6 +63,7 @@ export default defineConfig({
 | `autoCreateTestCases` | No | `true` | — | Auto-create cases for unmatched tests |
 | `autoCreateDefects` | No | `false` | — | Create defects for failures |
 | `uploadLogs` | No | `true` | — | Upload stdout/stderr as run logs |
+| `uploadAttachments` | No | `true` | — | Upload screenshots, videos, and traces |
 | `debug` | No | `false` | `LGTM_DEBUG` | Verbose debug logging |
 
 ### The `lgtm()` Helper
@@ -112,6 +113,7 @@ onStdOut/onStdErr(chunk, test)
 onEnd(result)
   → flush results in batches of 50 (POST /api/test-runs/:id/results)
   → upload logs (chunked to 60KB, POST /api/test-runs/:id/logs)
+  → upload attachments (screenshots, videos, traces via POST /api/attachments)
   → create defects for failures if enabled (POST /api/defects)
   → update run status (PATCH /api/test-runs/:id)
   → print summary

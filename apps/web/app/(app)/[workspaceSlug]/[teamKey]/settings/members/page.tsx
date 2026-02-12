@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { PageContainer } from "@/components/page-container";
-import { TeamMembersContent } from "./team-members-content";
+import { TeamMembersList } from "@/components/team-settings/team-members-list";
 
 export const metadata: Metadata = {
   title: "Team Members — LGTM",
 };
 
 export default async function TeamMembersPage() {
-  return (
-    <PageContainer>
-      <TeamMembersContent />
-    </PageContainer>
-  );
+  return <TeamMembersList />;
 }

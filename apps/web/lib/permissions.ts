@@ -14,9 +14,11 @@ const statements = {
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   defect: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "delete"],
 
   // Team-level resources
   projectMember: ["create", "read", "update", "delete"],
@@ -36,9 +38,11 @@ export const ownerRole = ac.newRole({
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   defect: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "delete"],
 });
 
 export const adminRole = ac.newRole({
@@ -52,9 +56,11 @@ export const adminRole = ac.newRole({
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   defect: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "delete"],
 });
 
 export const memberRole = ac.newRole({
@@ -65,9 +71,11 @@ export const memberRole = ac.newRole({
   testCase: ["create", "read", "update"],
   testRun: ["create", "read", "execute"],
   testPlan: ["read", "update"],
+  sharedStep: ["read"],
   defect: ["create", "read", "update"],
   shareLink: ["read"],
   comment: ["create", "read", "update"],
+  attachment: ["create", "read"],
 });
 
 export const viewerRole = ac.newRole({
@@ -78,9 +86,11 @@ export const viewerRole = ac.newRole({
   testCase: ["read"],
   testRun: ["read"],
   testPlan: ["read"],
+  sharedStep: ["read"],
   defect: ["read"],
   shareLink: ["read"],
   comment: ["read"],
+  attachment: ["read"],
 });
 
 // ============================================================
@@ -97,9 +107,11 @@ export const teamOwnerRole = ac.newRole({
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   defect: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "delete"],
 });
 
 export const teamAdminRole = ac.newRole({
@@ -112,9 +124,11 @@ export const teamAdminRole = ac.newRole({
   testCase: ["create", "read", "update", "delete"],
   testRun: ["create", "read", "execute", "delete"],
   testPlan: ["create", "read", "update", "delete"],
+  sharedStep: ["create", "read", "update", "delete"],
   defect: ["create", "read", "update", "delete"],
   shareLink: ["create", "read", "delete"],
   comment: ["create", "read", "update", "delete"],
+  attachment: ["create", "read", "delete"],
 });
 
 export const teamMemberRole = ac.newRole({
@@ -127,9 +141,11 @@ export const teamMemberRole = ac.newRole({
   testCase: ["create", "read", "update"],
   testRun: ["create", "read", "execute"],
   testPlan: ["read", "update"],
+  sharedStep: ["read"],
   defect: ["create", "read", "update"],
   shareLink: ["read"],
   comment: ["create", "read", "update"],
+  attachment: ["create", "read"],
 });
 
 export const teamViewerRole = ac.newRole({
@@ -142,7 +158,9 @@ export const teamViewerRole = ac.newRole({
   testCase: ["read"],
   testRun: ["read"],
   testPlan: ["read"],
+  sharedStep: ["read"],
   defect: ["read"],
   shareLink: ["read"],
   comment: ["read"],
+  attachment: ["read"],
 });

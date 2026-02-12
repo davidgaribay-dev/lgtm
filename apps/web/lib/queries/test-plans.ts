@@ -16,15 +16,14 @@ export async function getProjectTestPlans(projectId: string) {
       description: testPlan.description,
       status: testPlan.status,
       createdAt: testPlan.createdAt,
-      caseCount: sql<number>`(
-        select count(*)::int from test_plan_case
-        where test_plan_case.test_plan_id = ${testPlan.id}
-      )`,
+      caseCount: sql<number>`count(${testPlanCase.id})::int`,
     })
     .from(testPlan)
+    .leftJoin(testPlanCase, eq(testPlanCase.testPlanId, testPlan.id))
     .where(
       and(eq(testPlan.projectId, projectId), isNull(testPlan.deletedAt)),
     )
+    .groupBy(testPlan.id)
     .orderBy(asc(testPlan.name));
 }
 

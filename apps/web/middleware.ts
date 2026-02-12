@@ -94,11 +94,26 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Generate nonce for CSP (Next.js extracts it automatically from the header)
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Build dynamic img-src to include S3/SeaweedFS origin when configured
+  const imgSources = ["'self'", "blob:", "data:", "https://*.public.blob.vercel-storage.com"];
+  const s3PublicUrl = process.env.S3_PUBLIC_URL_BASE;
+  if (s3PublicUrl) {
+    try {
+      imgSources.push(new URL(s3PublicUrl).origin);
+    } catch {
+      // invalid URL — skip
+    }
+  }
+
   const cspHeader = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src ${imgSources.join(" ")}`,
     "font-src 'self'",
     "connect-src 'self'",
     "object-src 'none'",
@@ -110,6 +125,7 @@ export function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-correlation-id", correlationId);
+  requestHeaders.set("x-nonce", nonce);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },

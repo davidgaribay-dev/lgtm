@@ -29,7 +29,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TestStepsEditor, type TestStep } from "@/components/test-steps-editor";
+import { SharedStepPicker } from "@/components/shared-step-picker";
 import { CommentSection } from "@/components/comments/comment-section";
+import { AttachmentSection } from "@/components/attachments/attachment-section";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { authClient } from "@/lib/auth-client";
 import { useWorkspace } from "@/lib/workspace-context";
@@ -86,6 +89,7 @@ function TestRepoDetailCaseInner({
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [sharedStepPickerOpen, setSharedStepPickerOpen] = useState(false);
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -299,6 +303,53 @@ function TestRepoDetailCaseInner({
     [testCase.id],
   );
 
+  const handleInsertSharedStep = useCallback(
+    async (sharedStepData: {
+      id: string;
+      title: string;
+      actions: {
+        id: string;
+        stepOrder: number;
+        action: string;
+        data: string | null;
+        expectedResult: string | null;
+      }[];
+    }) => {
+      if (!steps || sharedStepData.actions.length === 0) return;
+
+      // Create each action as a new step in the test case, tagged with the shared step ID
+      const newSteps: TestStep[] = [];
+      for (const action of sharedStepData.actions) {
+        const res = await fetch(`/api/test-cases/${testCase.id}/steps`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: action.action,
+            data: action.data,
+            expectedResult: action.expectedResult,
+            sharedStepId: sharedStepData.id,
+          }),
+        });
+        if (res.ok) {
+          const created = await res.json();
+          newSteps.push({
+            id: created.id,
+            stepOrder: created.stepOrder,
+            action: created.action,
+            data: created.data ?? null,
+            expectedResult: created.expectedResult ?? null,
+          });
+        }
+      }
+
+      if (newSteps.length > 0) {
+        const updated = [...steps, ...newSteps];
+        setSteps(updated);
+      }
+    },
+    [steps, testCase.id],
+  );
+
   const loadingSteps = steps === null;
 
   return (
@@ -419,22 +470,39 @@ function TestRepoDetailCaseInner({
                 onStepCreate={handleStepCreate}
                 onStepDelete={handleStepDelete}
                 onStepsReorder={handleStepsReorder}
+                onInsertSharedStep={() => setSharedStepPickerOpen(true)}
               />
+            )}
+
+            {/* Attachments */}
+            {currentUserId && (
+              <div className="border-t pt-8">
+                <AttachmentSection
+                  entityType="test_case"
+                  entityId={testCase.id}
+                  projectId={projectId}
+                  currentUserId={currentUserId}
+                  canWrite={canWrite}
+                  canDeleteAny={canDeleteAny}
+                />
+              </div>
             )}
 
             {/* Comments */}
             {currentUserId && (
               <div className="border-t pt-8">
-                <CommentSection
-                  entityType="test_case"
-                  entityId={testCase.id}
-                  projectId={projectId}
-                  currentUserId={currentUserId}
-                  currentUserImage={session?.user?.image}
-                  currentUserName={session?.user?.name}
-                  canWrite={canWrite}
-                  canDeleteAny={canDeleteAny}
-                />
+                <ErrorBoundary>
+                  <CommentSection
+                    entityType="test_case"
+                    entityId={testCase.id}
+                    projectId={projectId}
+                    currentUserId={currentUserId}
+                    currentUserImage={session?.user?.image}
+                    currentUserName={session?.user?.name}
+                    canWrite={canWrite}
+                    canDeleteAny={canDeleteAny}
+                  />
+                </ErrorBoundary>
               </div>
             )}
           </div>
@@ -473,6 +541,14 @@ function TestRepoDetailCaseInner({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Shared step picker */}
+      <SharedStepPicker
+        projectId={projectId}
+        open={sharedStepPickerOpen}
+        onOpenChange={setSharedStepPickerOpen}
+        onSelect={handleInsertSharedStep}
+      />
     </div>
   );
 }

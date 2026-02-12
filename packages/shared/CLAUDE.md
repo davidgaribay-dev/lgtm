@@ -30,6 +30,8 @@ src/
 │   ├── environment.ts    # environment types
 │   ├── cycle.ts          # cycle statuses
 │   ├── test-plan.ts      # test plan statuses
+│   ├── shared-step.ts    # shared step statuses
+│   ├── attachment.ts     # entity types, allowed MIME types, max file size
 │   └── team.ts           # team roles, org roles
 ├── types/
 │   ├── index.ts          # Re-exports all types
@@ -42,7 +44,9 @@ src/
 │   ├── defect.ts         # Defect, CreateDefectRequest
 │   ├── environment.ts    # Environment, CreateEnvironmentRequest
 │   ├── cycle.ts          # Cycle, WorkspaceCycle
-│   └── log.ts            # TestRunLog, AppendLogRequest
+│   ├── shared-step.ts    # SharedStep, SharedStepAction, SharedStepWithActions, Create/Update requests, action request types
+│   ├── log.ts            # TestRunLog, AppendLogRequest
+│   └── attachment.ts     # Attachment
 └── api-client/
     ├── index.ts          # LgtmApiClient class
     └── errors.ts         # LgtmApiError class
@@ -84,6 +88,10 @@ import { TEST_CASE_PRIORITIES, type TestCasePriority } from "@lgtm/shared";
 | `ENVIRONMENT_TYPES` | development, staging, qa, production, custom |
 | `CYCLE_STATUSES` | planned, active, completed |
 | `TEST_PLAN_STATUSES` | draft, active, completed, archived |
+| `SHARED_STEP_STATUSES` | active, draft, archived |
+| `ATTACHMENT_ENTITY_TYPES` | test_case, test_result, defect, test_run, comment |
+| `ALLOWED_ATTACHMENT_MIME_TYPES` | image/jpeg, image/png, image/webp, image/gif, video/mp4, video/webm, application/pdf, application/zip, text/plain |
+| `MAX_ATTACHMENT_SIZE` | 10 MB (10 * 1024 * 1024) |
 | `TEAM_ROLES` | team_owner, team_admin, team_member, team_viewer |
 | `ORG_ROLES` | owner, admin, member, viewer |
 
@@ -133,6 +141,18 @@ await client.submitResults(run.id, { results: [...] });
 | `createDefect(data)` | Create a defect |
 | `getEnvironments(projectId)` | List environments for a project |
 | `getCycles(projectId)` | List cycles for a project |
+| `uploadAttachment(file, name, mimeType, entityType, entityId, projectId)` | Upload a file attachment |
+| `getAttachments(entityType, entityId)` | List attachments for an entity |
+| `deleteAttachment(id)` | Delete an attachment |
+| `getSharedSteps(projectId)` | List shared steps for a project |
+| `getSharedStep(id)` | Get a shared step with its actions |
+| `createSharedStep(data)` | Create a new shared step |
+| `updateSharedStep(id, data)` | Update a shared step |
+| `deleteSharedStep(id)` | Delete a shared step |
+| `createSharedStepAction(stepId, data)` | Add an action to a shared step |
+| `updateSharedStepAction(stepId, actionId, data)` | Update a shared step action |
+| `deleteSharedStepAction(stepId, actionId)` | Delete a shared step action |
+| `reorderSharedStepActions(stepId, actionIds)` | Reorder actions in a shared step |
 
 All methods throw `LgtmApiError` on failure, which includes `statusCode` and `responseBody`.
 

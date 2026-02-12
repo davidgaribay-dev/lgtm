@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1770766181579,
-      "tag": "0000_initial_schema",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1770769955247,
-      "tag": "0001_salty_jackal",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1770777365663,
-      "tag": "0002_tidy_doctor_strange",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1770857454211,
-      "tag": "0003_tidy_emma_frost",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1770863968134,
-      "tag": "0004_slim_marvel_zombies",
+      "when": 1770937438810,
+      "tag": "0000_normal_hairball",
       "breakpoints": true
     }
   ]

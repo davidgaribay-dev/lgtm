@@ -1,6 +1,7 @@
 {
   "name": "@lgtm/cli",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "bin": {
     "lgtm": "./dist/index.js"

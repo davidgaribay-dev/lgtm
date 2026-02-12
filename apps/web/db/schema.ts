@@ -6,6 +6,7 @@ import {
   integer,
   uniqueIndex,
   index,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { auditFields, timestamps } from "./columns";
@@ -175,7 +176,9 @@ export const section = pgTable(
     suiteId: text("suite_id").references(() => testSuite.id, {
       onDelete: "set null",
     }),
-    parentId: text("parent_id"),
+    parentId: text("parent_id").references((): AnyPgColumn => section.id, {
+      onDelete: "set null",
+    }),
     displayOrder: integer("display_order").notNull().default(0),
     ...auditFields,
   },
@@ -254,9 +257,63 @@ export const testStep = pgTable(
     action: text("action").notNull(),
     data: text("data"),
     expectedResult: text("expected_result"),
+    sharedStepId: text("shared_step_id").references(() => sharedStep.id, {
+      onDelete: "set null",
+    }),
     ...auditFields,
   },
-  (table) => [index("test_step_test_case_id_idx").on(table.testCaseId)],
+  (table) => [
+    index("test_step_test_case_id_idx").on(table.testCaseId),
+    index("test_step_shared_step_id_idx").on(table.sharedStepId),
+  ],
+);
+
+// ============================================================
+// Application tables — Shared Steps (project-scoped)
+// ============================================================
+
+export const sharedStep = pgTable(
+  "shared_step",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    description: text("description"),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("active"),
+    displayOrder: integer("display_order").notNull().default(0),
+    ...auditFields,
+  },
+  (table) => [
+    index("shared_step_project_id_idx").on(table.projectId),
+    uniqueIndex("shared_step_project_title_active_unique")
+      .on(table.projectId, table.title)
+      .where(sql`${table.deletedAt} is null`),
+    index("shared_step_status_idx").on(table.status),
+  ],
+);
+
+export const sharedStepAction = pgTable(
+  "shared_step_action",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    sharedStepId: text("shared_step_id")
+      .notNull()
+      .references(() => sharedStep.id, { onDelete: "cascade" }),
+    stepOrder: integer("step_order").notNull(),
+    action: text("action").notNull(),
+    data: text("data"),
+    expectedResult: text("expected_result"),
+    ...auditFields,
+  },
+  (table) => [
+    index("shared_step_action_shared_step_id_idx").on(table.sharedStepId),
+  ],
 );
 
 export const tag = pgTable(
@@ -516,6 +573,7 @@ export const testResult = pgTable(
       table.testRunId,
       table.testCaseId,
     ),
+    index("test_result_run_status_idx").on(table.testRunId, table.status),
   ],
 );
 
@@ -869,7 +927,9 @@ export const comment = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
-    parentId: text("parent_id"),
+    parentId: text("parent_id").references((): AnyPgColumn => comment.id, {
+      onDelete: "cascade",
+    }),
     body: text("body").notNull(),
     editedAt: timestamp("edited_at", { withTimezone: true }),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),

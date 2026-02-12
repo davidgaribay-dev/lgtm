@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Return token (ONLY time it's shown in plaintext for approved tokens)
-  const responseData: any = {
+  const responseData: Record<string, unknown> = {
     id: createdToken.id,
     name: createdToken.name,
     prefix: createdToken.tokenPrefix,
@@ -300,29 +300,47 @@ export async function GET(request: NextRequest) {
     )
     .orderBy(desc(apiToken.createdAt));
 
-  // Load permissions for each token
-  const tokensWithPermissions = await Promise.all(
-    tokens.map(async (token) => {
-      const perms = await db
-        .select({
-          resource: apiTokenPermission.resource,
-          action: apiTokenPermission.action,
-        })
-        .from(apiTokenPermission)
-        .where(eq(apiTokenPermission.tokenId, token.id));
+  // Batch load permissions and scopes for all tokens (avoid N+1)
+  const tokenIds = tokens.map((t) => t.id);
 
-      const scopes = await db
-        .select({ projectId: apiTokenProjectScope.projectId })
-        .from(apiTokenProjectScope)
-        .where(eq(apiTokenProjectScope.tokenId, token.id));
+  const [allPermissions, allScopes] = tokenIds.length > 0
+    ? await Promise.all([
+        db
+          .select({
+            tokenId: apiTokenPermission.tokenId,
+            resource: apiTokenPermission.resource,
+            action: apiTokenPermission.action,
+          })
+          .from(apiTokenPermission)
+          .where(inArray(apiTokenPermission.tokenId, tokenIds)),
+        db
+          .select({
+            tokenId: apiTokenProjectScope.tokenId,
+            projectId: apiTokenProjectScope.projectId,
+          })
+          .from(apiTokenProjectScope)
+          .where(inArray(apiTokenProjectScope.tokenId, tokenIds)),
+      ])
+    : [[], []];
 
-      return {
-        ...token,
-        permissions: perms,
-        projectScopes: scopes.map((s) => s.projectId),
-      };
-    }),
-  );
+  // Group by tokenId
+  const permsByToken = new Map<string, Array<{ resource: string; action: string }>>();
+  for (const p of allPermissions) {
+    if (!permsByToken.has(p.tokenId)) permsByToken.set(p.tokenId, []);
+    permsByToken.get(p.tokenId)!.push({ resource: p.resource, action: p.action });
+  }
+
+  const scopesByToken = new Map<string, string[]>();
+  for (const s of allScopes) {
+    if (!scopesByToken.has(s.tokenId)) scopesByToken.set(s.tokenId, []);
+    scopesByToken.get(s.tokenId)!.push(s.projectId);
+  }
+
+  const tokensWithPermissions = tokens.map((token) => ({
+    ...token,
+    permissions: permsByToken.get(token.id) || [],
+    projectScopes: scopesByToken.get(token.id) || [],
+  }));
 
   return NextResponse.json(tokensWithPermissions);
 }

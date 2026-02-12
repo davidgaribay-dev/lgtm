@@ -16,7 +16,14 @@
     "db:push": "pnpm --filter @lgtm/web db:push",
     "db:studio": "pnpm --filter @lgtm/web db:studio",
     "db:reset": "pnpm --filter @lgtm/web db:reset",
-    "test:reporter": "pnpm --filter @lgtm/playwright-reporter test"
+    "test:reporter": "pnpm --filter @lgtm/playwright-reporter test",
+    "docs:dev": "pnpm --filter @lgtm/docs dev",
+    "docs:build": "pnpm --filter @lgtm/docs build",
+    "docs:preview": "pnpm --filter @lgtm/docs preview",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v",
+    "docker:logs": "docker compose logs -f"
   },
   "packageManager": "pnpm@9.15.4"
 }

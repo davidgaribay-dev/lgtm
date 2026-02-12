@@ -21,8 +21,11 @@ import {
   sql,
 } from "drizzle-orm";
 
-/** Fetch all test runs for a project with computed result metrics. */
-export async function getProjectTestRuns(projectId: string) {
+/** Fetch test runs for a project with computed result metrics. */
+export async function getProjectTestRuns(
+  projectId: string,
+  { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+) {
   const runs = await db
     .select({
       id: testRun.id,
@@ -46,7 +49,9 @@ export async function getProjectTestRuns(projectId: string) {
     .where(
       and(eq(testRun.projectId, projectId), isNull(testRun.deletedAt)),
     )
-    .orderBy(desc(testRun.createdAt));
+    .orderBy(desc(testRun.createdAt))
+    .limit(limit)
+    .offset(offset);
 
   if (runs.length === 0) return [];
 

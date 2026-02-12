@@ -14,4 +14,5 @@ export interface ApiError {
 export interface BulkSubmitResultsResponse {
   updated: number;
   suggestedRunStatus: string;
+  results: Array<{ testCaseId: string; testResultId: string }>;
 }

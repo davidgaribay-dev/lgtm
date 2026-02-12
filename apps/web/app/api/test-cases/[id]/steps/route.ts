@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and, isNull, max } from "drizzle-orm";
 import { db } from "@/db";
-import { testStep, testCase } from "@/db/schema";
+import { testStep, testCase, project, member } from "@/db/schema";
 import { getAuthContext } from "@/lib/api-auth";
-import { hasTokenPermission } from "@/lib/token-permissions";
+import { hasTokenPermission, hasProjectAccess } from "@/lib/token-permissions";
 import { getTestSteps } from "@/lib/queries/test-steps";
 import { logger } from "@/lib/logger";
 
@@ -32,13 +32,46 @@ export async function GET(
     return NextResponse.json({ error: "Test case not found" }, { status: 404 });
   }
 
-  // Token auth: verify permissions
+  // Verify project access
+  const proj = await db
+    .select({ organizationId: project.organizationId })
+    .from(project)
+    .where(and(eq(project.id, testCaseData.projectId), isNull(project.deletedAt)))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!proj) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
   if (authContext.type === "api_token") {
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!hasProjectAccess(authContext, testCaseData.projectId)) {
+      return NextResponse.json({ error: "Forbidden - project scope" }, { status: 403 });
+    }
     if (!hasTokenPermission(authContext, "testCase", "read")) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 },
       );
+    }
+  } else {
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
@@ -83,18 +116,51 @@ export async function POST(
     return NextResponse.json({ error: "Test case not found" }, { status: 404 });
   }
 
-  // Token auth: verify permissions
+  // Verify project access
+  const proj = await db
+    .select({ organizationId: project.organizationId })
+    .from(project)
+    .where(and(eq(project.id, testCaseData.projectId), isNull(project.deletedAt)))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!proj) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
   if (authContext.type === "api_token") {
+    if (authContext.organizationId !== proj.organizationId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!hasProjectAccess(authContext, testCaseData.projectId)) {
+      return NextResponse.json({ error: "Forbidden - project scope" }, { status: 403 });
+    }
     if (!hasTokenPermission(authContext, "testCase", "update")) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
         { status: 403 },
       );
     }
+  } else {
+    const membership = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(
+        and(
+          eq(member.organizationId, proj.organizationId),
+          eq(member.userId, authContext.userId),
+        ),
+      )
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (!membership || membership.role === "viewer") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const body = await request.json();
-  const { action, data, expectedResult } = body;
+  const { action, data, expectedResult, sharedStepId } = body;
 
   // Validation
   if (!action || typeof action !== "string" || !action.trim()) {
@@ -121,6 +187,7 @@ export async function POST(
       action: action.trim(),
       data: data?.trim() || null,
       expectedResult: expectedResult?.trim() || null,
+      sharedStepId: sharedStepId || null,
       createdBy: authContext.userId,
       updatedBy: authContext.userId,
     })

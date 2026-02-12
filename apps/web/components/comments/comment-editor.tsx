@@ -10,8 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowUp, Send } from "lucide-react";
+import { ArrowUp, Loader2, Paperclip, Send } from "lucide-react";
 import { MentionAutocomplete } from "./mention-autocomplete";
+import { isImageMimeType } from "@/lib/attachment-utils";
 import type { MentionableUser } from "./types";
 
 interface CommentEditorProps {
@@ -43,7 +44,9 @@ export function CommentEditor({
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
+  const [isAttaching, setIsAttaching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -147,6 +150,44 @@ export function CommentEditor({
     [variant, showMentions, handleSubmit],
   );
 
+  const handleFileAttach = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+
+      setIsAttaching(true);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        // Upload to general upload endpoint for inline embedding
+        formData.append("context", "comment-attachment");
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const { url } = await res.json();
+
+        // Insert markdown link at cursor or end
+        const isImage = isImageMimeType(file.type);
+        const markdown = isImage
+          ? `![${file.name}](${url})`
+          : `[${file.name}](${url})`;
+
+        setBody((prev) => {
+          const newBody = prev ? `${prev}\n${markdown}` : markdown;
+          return newBody;
+        });
+      } catch {
+        // Silently fail — user can retry
+      } finally {
+        setIsAttaching(false);
+      }
+    },
+    [],
+  );
+
   const userInitials = currentUserName
     ? currentUserName
         .split(" ")
@@ -225,7 +266,31 @@ export function CommentEditor({
             />
           </div>
         )}
-        <div className="flex items-center justify-end px-3 pb-2">
+        <div className="flex items-center justify-between px-3 pb-2">
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isAttaching}
+              title="Attach file"
+            >
+              {isAttaching ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Paperclip className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,application/zip,text/plain"
+              className="hidden"
+              onChange={handleFileAttach}
+            />
+          </div>
           <Button
             variant="ghost"
             size="sm"

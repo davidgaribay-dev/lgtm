@@ -27,6 +27,7 @@ import {
   UserMinus,
   Plus,
   GripVertical,
+  Workflow,
 } from "lucide-react";
 import { useDrag, useDrop, type ConnectDragSource } from "react-dnd";
 import { authClient } from "@/lib/auth-client";
@@ -114,6 +115,12 @@ const teamSettingsNavItems = [
     exact: false,
   },
   {
+    segment: "settings/shared-steps",
+    label: "Shared Steps",
+    icon: Workflow,
+    exact: false,
+  },
+  {
     segment: "settings/tokens",
     label: "API Tokens",
     icon: Key,
@@ -191,13 +198,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
     }
   }, [localTeams, workspace.id, teams]);
 
-  const wsInitials = workspace.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-
   const isExpanded = isSettings || isTeamSettings ? true : expanded;
   const basePath = `/${workspace.slug}`;
 
@@ -218,7 +218,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
         ) : (
           <WorkspaceHeader
             workspace={workspace}
-            wsInitials={wsInitials}
             user={user}
             expanded={isExpanded}
             ready={ready}
@@ -491,7 +490,6 @@ function SettingsHeader({
 
 function WorkspaceHeader({
   workspace,
-  wsInitials,
   user,
   expanded,
   ready,
@@ -500,7 +498,6 @@ function WorkspaceHeader({
   basePath,
 }: {
   workspace: { name: string; slug: string; logo: string | null };
-  wsInitials: string;
   user: AppSidebarProps["user"];
   expanded: boolean;
   ready: boolean;
@@ -525,13 +522,18 @@ function WorkspaceHeader({
                   expanded ? "px-2 py-1.5" : "justify-center p-1.5",
                 )}
               >
-                <Avatar className="h-9 w-9 shrink-0 rounded-lg">
+                <Avatar className="h-9 w-9 shrink-0 rounded-full">
                   <AvatarImage
-                    src={workspace.logo ?? undefined}
-                    alt={workspace.name}
+                    src={user.image ?? undefined}
+                    alt={user.name}
                   />
-                  <AvatarFallback className="rounded-lg text-xs">
-                    {wsInitials}
+                  <AvatarFallback className="rounded-full text-xs">
+                    {user.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
                 {expanded && (
@@ -584,13 +586,18 @@ function WorkspaceHeader({
               expanded ? "px-2 py-1.5" : "justify-center p-1.5",
             )}
           >
-            <Avatar className="h-9 w-9 shrink-0 rounded-lg">
+            <Avatar className="h-9 w-9 shrink-0 rounded-full">
               <AvatarImage
-                src={workspace.logo ?? undefined}
-                alt={workspace.name}
+                src={user.image ?? undefined}
+                alt={user.name}
               />
-              <AvatarFallback className="rounded-lg text-xs">
-                {wsInitials}
+              <AvatarFallback className="rounded-full text-xs">
+                {user.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             {expanded && (

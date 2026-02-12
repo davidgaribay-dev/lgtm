@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Workflow } from "lucide-react";
 
 const STEP_DND_TYPE = "TEST_STEP";
 
@@ -27,6 +28,8 @@ interface TestStepsEditorProps {
   onStepCreate?: (step: TestStep) => Promise<TestStep>;
   onStepDelete?: (stepId: string) => Promise<void>;
   onStepsReorder?: (stepIds: string[]) => Promise<void>;
+  // Shared step support
+  onInsertSharedStep?: () => void;
 }
 
 export function TestStepsEditor({
@@ -37,6 +40,7 @@ export function TestStepsEditor({
   onStepCreate,
   onStepDelete,
   onStepsReorder,
+  onInsertSharedStep,
 }: TestStepsEditorProps) {
   const [localSteps, setLocalSteps] = useState(steps);
   const savingRef = useRef<Set<string>>(new Set());
@@ -152,17 +156,32 @@ export function TestStepsEditor({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-sm text-muted-foreground">Test Steps</Label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleAddStep}
-            disabled={disabled}
-            className="h-8 gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Step
-          </Button>
+          <div className="flex items-center gap-1">
+            {onInsertSharedStep && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onInsertSharedStep}
+                disabled={disabled}
+                className="h-8 gap-1.5"
+              >
+                <Workflow className="h-3.5 w-3.5" />
+                Add Shared Step
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleAddStep}
+              disabled={disabled}
+              className="h-8 gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Step
+            </Button>
+          </div>
         </div>
 
         {localSteps.length === 0 ? (

@@ -37,3 +37,14 @@ export type {
 } from "./environment.js";
 export type { Cycle, WorkspaceCycle } from "./cycle.js";
 export type { TestRunLog, AppendLogRequest } from "./log.js";
+export type {
+  SharedStep,
+  SharedStepAction,
+  SharedStepWithActions,
+  CreateSharedStepRequest,
+  UpdateSharedStepRequest,
+  CreateSharedStepActionRequest,
+  UpdateSharedStepActionRequest,
+  ReorderSharedStepActionsRequest,
+} from "./shared-step.js";
+export type { Attachment } from "./attachment.js";
