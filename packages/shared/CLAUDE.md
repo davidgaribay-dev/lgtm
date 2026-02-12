@@ -1,6 +1,6 @@
 # @lgtm/shared
 
-Shared constants, TypeScript types, and API client for the LGTM ecosystem. Used by `@lgtm/web` (API route validation) and `@lgtm/playwright-reporter` (API communication).
+Shared constants, TypeScript types, and API client for the LGTM ecosystem. Used by `@lgtm/web` (API route validation), `@lgtm/cli` (CLI tool), and `@lgtm/playwright-reporter` (Playwright integration).
 
 ## Commands
 
@@ -97,7 +97,7 @@ import type { TestRun, CreateTestRunRequest, TestCase } from "@lgtm/shared";
 
 ## API Client
 
-`LgtmApiClient` is a typed HTTP client for the LGTM API, used by the Playwright reporter and potentially other integrations.
+`LgtmApiClient` is a typed HTTP client for the LGTM API, used by `@lgtm/cli` and `@lgtm/playwright-reporter`.
 
 ```typescript
 import { LgtmApiClient } from "@lgtm/shared";
@@ -118,13 +118,18 @@ await client.submitResults(run.id, { results: [...] });
 |--------|-------------|
 | `getTeams()` | List all accessible projects/teams |
 | `getTestCases(projectId)` | List test cases (tree data) for a project |
+| `getTestCaseByKey(projectId, caseKey)` | Get a test case by human-readable key (e.g., "ENG-42") with steps |
 | `createTestCase(data)` | Create a new test case |
+| `updateTestCase(id, data)` | Update a test case |
+| `getTestRuns(projectId)` | List test runs for a project |
 | `createTestRun(data)` | Create a new test run |
 | `getTestRun(id)` | Get test run details |
 | `updateTestRun(id, data)` | Update test run status/metadata |
 | `submitResults(runId, data)` | Bulk submit test results |
 | `appendRunLog(runId, data)` | Append log chunk to a test run |
 | `appendResultLog(resultId, data)` | Append log chunk to a test result |
+| `getDefects(projectId)` | List defects for a project |
+| `getDefectByKey(defectKey)` | Get a defect by human-readable key (e.g., "ENG-D-42") |
 | `createDefect(data)` | Create a defect |
 | `getEnvironments(projectId)` | List environments for a project |
 | `getCycles(projectId)` | List cycles for a project |

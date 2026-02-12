@@ -1,15 +1,28 @@
 # LGTM
 
-A test case management system built with Next.js, designed for teams to organize, execute, and track test cases.
+A test case management system designed for teams to organize, execute, and track test cases — with first-class support for AI coding agents and CI/CD automation.
+
+## Monorepo Structure
+
+This is a **pnpm workspace monorepo** with the following packages:
+
+| Package | Path | Description |
+|---------|------|-------------|
+| `@lgtm/web` | `apps/web/` | Next.js 16 web application — test case management UI |
+| `@lgtm/shared` | `packages/shared/` | Shared constants, TypeScript types, and API client |
+| `@lgtm/cli` | `packages/cli/` | CLI tool for AI agents and developers |
+| `@lgtm/playwright-reporter` | `packages/playwright-reporter/` | Playwright test reporter that uploads results to LGTM |
 
 ## Features
 
 - **Test case management** — Create and organize test cases with steps, preconditions, priorities, and tags
 - **Hierarchical organization** — Suites, sections (nested folders), and tags for flexible test structure
 - **Test execution** — Plan test runs, record results (pass/fail/blocked/skip), track per-step outcomes
+- **Defect tracking** — File and track bugs with severity, priority, and traceability to test cases/runs
 - **Team collaboration** — Organizations with role-based access (owner, admin, member, viewer)
-- **Invitations** — Invite team members by email with role assignment
 - **API tokens** — Fine-grained access tokens with resource-level permissions for programmatic access
+- **CLI for agents** — `@lgtm/cli` lets AI coding agents query test cases, submit results, and file defects
+- **Playwright integration** — `@lgtm/playwright-reporter` automatically uploads test results from Playwright runs
 - **Share links** — Grant read-only access to external guests without requiring an account
 - **File attachments** — Upload images and files to test cases and results via Vercel Blob
 - **Structured logging** — Production-grade logging with Pino, client-to-server log aggregation, and sensitive data redaction
@@ -22,12 +35,14 @@ A test case management system built with Next.js, designed for teams to organize
 - **Storage:** Vercel Blob for file uploads
 - **Logging:** Pino logger with correlation IDs and automatic sensitive data redaction
 - **Styling:** Tailwind CSS 4, shadcn/ui, Lucide icons
+- **CLI:** Commander.js, Winston, cli-table3
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 20+
+- pnpm 9+
 - A [Neon](https://neon.tech) PostgreSQL database
 - A [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store (for file uploads)
 
@@ -36,13 +51,13 @@ A test case management system built with Next.js, designed for teams to organize
 1. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 2. Copy environment variables and fill in your values:
 
 ```bash
-cp .env.local.example .env.local
+cp apps/web/.env.local.example apps/web/.env.local
 ```
 
 Required variables:
@@ -63,28 +78,95 @@ Optional variables:
 3. Push the schema to your database:
 
 ```bash
-npm run db:push
+pnpm db:push
 ```
 
 4. Start the dev server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to get started.
 
 ## Scripts
 
+All commands run from the repo root via pnpm workspace proxying.
+
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run lint` | Run ESLint |
-| `npm run db:generate` | Generate migration SQL from schema changes |
-| `npm run db:migrate` | Apply pending migrations |
-| `npm run db:push` | Push schema directly to DB (prototyping) |
-| `npm run db:studio` | Open Drizzle Studio (DB browser) |
+| `pnpm dev` | Start Next.js dev server |
+| `pnpm build` | Build all packages then the web app |
+| `pnpm build:packages` | Build all packages in dependency order |
+| `pnpm build:shared` | Build `@lgtm/shared` only |
+| `pnpm build:cli` | Build `@lgtm/cli` only |
+| `pnpm build:reporter` | Build `@lgtm/playwright-reporter` only |
+| `pnpm lint` | Run ESLint |
+| `pnpm db:generate` | Generate migration SQL from schema changes |
+| `pnpm db:migrate` | Apply pending migrations |
+| `pnpm db:push` | Push schema directly to DB (prototyping) |
+| `pnpm db:studio` | Open Drizzle Studio (DB browser) |
+
+## CLI (`@lgtm/cli`)
+
+The CLI provides a universal agent interface for AI coding agents and developers to interact with LGTM from the terminal.
+
+### Quick Start
+
+```bash
+# Configure authentication
+lgtm auth configure
+
+# List projects
+lgtm projects list
+
+# List test cases for a project
+lgtm test-cases list --project ENG --json
+
+# Get a specific test case with steps
+lgtm test-cases get ENG-42 --json
+
+# Create a test run
+lgtm test-runs create --project ENG --name "Sprint 5" --cases ENG-1,ENG-2,ENG-3
+
+# Submit a test result
+lgtm test-results submit --run <id> --case <id> --status passed
+
+# File a defect
+lgtm defects create --project ENG --title "Login page broken" --severity critical
+```
+
+### Configuration
+
+The CLI resolves configuration in this order:
+1. CLI flags (`--api-url`, `--api-token`, `--project`)
+2. Environment variables (`LGTM_API_URL`, `LGTM_API_TOKEN`, `LGTM_PROJECT_KEY`)
+3. Project-local `.lgtm.json`
+4. User config `~/.config/lgtm/config.json`
+
+Use `--json` for machine-readable output (recommended for agents).
+
+See [`packages/cli/CLAUDE.md`](packages/cli/CLAUDE.md) for full command reference.
+
+## Playwright Reporter (`@lgtm/playwright-reporter`)
+
+Automatically uploads Playwright test results to LGTM.
+
+```typescript
+// playwright.config.ts
+export default defineConfig({
+  reporter: [
+    ["list"],
+    ["@lgtm/playwright-reporter", {
+      apiUrl: "https://lgtm.example.com",
+      apiToken: process.env.LGTM_API_TOKEN,
+      projectKey: "ENG",
+    }],
+  ],
+});
+```
+
+See [`packages/playwright-reporter/CLAUDE.md`](packages/playwright-reporter/CLAUDE.md) for full configuration options.
 
 ## Logging
 

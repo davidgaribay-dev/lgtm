@@ -1,10 +1,103 @@
-import { NextResponse } from "next/server";
-import { eq, and, isNull, inArray, max } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { eq, and, isNull, inArray, max, asc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { project, member } from "@/db/schema";
 import { headers } from "next/headers";
 import { validateTeamKey } from "@/lib/utils";
+import { getAuthContext } from "@/lib/api-auth";
+import { hasProjectAccess } from "@/lib/token-permissions";
+
+export async function GET(request: NextRequest) {
+  const authContext = await getAuthContext(request);
+  if (!authContext) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (authContext.type === "api_token") {
+    // For token auth, return projects in the token's org filtered by project scopes
+    const allProjects = await db
+      .select({
+        id: project.id,
+        name: project.name,
+        key: project.key,
+        description: project.description,
+        organizationId: project.organizationId,
+        status: project.status,
+        displayOrder: project.displayOrder,
+        nextTestCaseNumber: project.nextTestCaseNumber,
+        nextRunNumber: project.nextRunNumber,
+        nextDefectNumber: project.nextDefectNumber,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      })
+      .from(project)
+      .where(
+        and(
+          eq(project.organizationId, authContext.organizationId),
+          isNull(project.deletedAt),
+        ),
+      )
+      .orderBy(asc(project.displayOrder), asc(project.name));
+
+    // Filter by project scopes if the token has restrictions
+    const filtered = allProjects.filter((p) =>
+      hasProjectAccess(authContext, p.id),
+    );
+
+    return NextResponse.json(filtered);
+  }
+
+  // Session auth: return projects in the user's active org
+  if (!authContext.organizationId) {
+    return NextResponse.json(
+      { error: "No active organization" },
+      { status: 400 },
+    );
+  }
+
+  const membership = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(
+      and(
+        eq(member.organizationId, authContext.organizationId),
+        eq(member.userId, authContext.userId),
+      ),
+    )
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!membership) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const projects = await db
+    .select({
+      id: project.id,
+      name: project.name,
+      key: project.key,
+      description: project.description,
+      organizationId: project.organizationId,
+      status: project.status,
+      displayOrder: project.displayOrder,
+      nextTestCaseNumber: project.nextTestCaseNumber,
+      nextRunNumber: project.nextRunNumber,
+      nextDefectNumber: project.nextDefectNumber,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    })
+    .from(project)
+    .where(
+      and(
+        eq(project.organizationId, authContext.organizationId),
+        isNull(project.deletedAt),
+      ),
+    )
+    .orderBy(asc(project.displayOrder), asc(project.name));
+
+  return NextResponse.json(projects);
+}
 
 const RESERVED_TEAM_KEYS = [
   "TEST",

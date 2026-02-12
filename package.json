@@ -7,6 +7,7 @@
     "build": "pnpm --filter @lgtm/web build",
     "build:shared": "pnpm --filter @lgtm/shared build",
     "build:reporter": "pnpm --filter @lgtm/playwright-reporter build",
+    "build:cli": "pnpm --filter @lgtm/cli build",
     "build:packages": "pnpm -r --filter './packages/**' build",
     "start": "pnpm --filter @lgtm/web start",
     "lint": "pnpm --filter @lgtm/web lint",

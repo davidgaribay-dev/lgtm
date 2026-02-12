@@ -1,6 +1,8 @@
 import type {
   TestCase,
+  TestStep,
   CreateTestCaseRequest,
+  UpdateTestCaseRequest,
   TestRun,
   TestRunDetail,
   CreateTestRunRequest,
@@ -77,6 +79,23 @@ export class LgtmApiClient {
     return this.request<TestCase>("POST", "/api/test-cases", data);
   }
 
+  async getTestCaseByKey(
+    projectId: string,
+    caseKey: string,
+  ): Promise<TestCase & { steps: TestStep[] }> {
+    return this.request<TestCase & { steps: TestStep[] }>(
+      "GET",
+      `/api/test-cases/by-key?projectId=${encodeURIComponent(projectId)}&caseKey=${encodeURIComponent(caseKey)}`,
+    );
+  }
+
+  async updateTestCase(
+    id: string,
+    data: UpdateTestCaseRequest,
+  ): Promise<TestCase> {
+    return this.request<TestCase>("PATCH", `/api/test-cases/${id}`, data);
+  }
+
   // ── Test Runs ─────────────────────────────────────────────────────
 
   async getTestRuns(projectId: string): Promise<TestRun[]> {
@@ -134,6 +153,20 @@ export class LgtmApiClient {
   }
 
   // ── Defects ───────────────────────────────────────────────────────
+
+  async getDefects(projectId: string): Promise<Defect[]> {
+    return this.request<Defect[]>(
+      "GET",
+      `/api/defects?projectId=${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  async getDefectByKey(defectKey: string): Promise<Defect> {
+    return this.request<Defect>(
+      "GET",
+      `/api/defects/by-key?defectKey=${encodeURIComponent(defectKey)}`,
+    );
+  }
 
   async createDefect(data: CreateDefectRequest): Promise<Defect> {
     return this.request<Defect>("POST", "/api/defects", data);

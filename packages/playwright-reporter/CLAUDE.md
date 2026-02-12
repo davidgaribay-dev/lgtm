@@ -2,7 +2,7 @@
 
 Custom Playwright reporter that uploads test results to the LGTM test case management API. Modeled after [Qase Playwright reporter](https://github.com/qase-tms/qase-javascript/tree/main/qase-playwright).
 
-Depends on `@lgtm/shared` for types, constants, and the API client.
+Depends on `@lgtm/shared` for types, constants, and the API client. See also `@lgtm/cli` for a standalone CLI tool that uses the same API client and environment variables.
 
 ## Commands
 

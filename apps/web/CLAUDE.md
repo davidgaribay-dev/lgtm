@@ -48,7 +48,7 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/api/logs/route.ts` — Client log ingestion endpoint (POST batched logs from browser)
 - `app/api/check-slug/route.ts` — Organization slug uniqueness check
 - `app/api/check-team-key/route.ts` — Team key availability check (scoped to org)
-- `app/api/teams/route.ts` — Team CRUD (POST creates with auto-incrementing `displayOrder` and `nextTestCaseNumber`)
+- `app/api/teams/route.ts` — Team CRUD: GET (list accessible projects; supports token auth for `@lgtm/cli`) + POST (create with auto-incrementing `displayOrder` and `nextTestCaseNumber`)
 - `app/api/teams/[id]/route.ts` — Team update: PATCH (update name, description; key is immutable)
 - `app/api/teams/[id]/members/route.ts` — Team members: GET (list) + POST (add member)
 - `app/api/teams/[id]/members/[memberId]/route.ts` — Team member: PATCH (update role) + DELETE (remove)
@@ -62,6 +62,7 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/api/workspace-cycles/route.ts` — Workspace cycle CRUD: GET (list by organizationId) + POST (create); organization-scoped; admin/owner only; supports token auth
 - `app/api/workspace-cycles/[id]/route.ts` — Workspace cycle PUT (update) + DELETE (soft-delete); admin/owner only; supports token auth
 - `app/api/test-cases/route.ts` — Test case POST (create); supports token auth
+- `app/api/test-cases/by-key/route.ts` — GET test case by human-readable key (e.g., ENG-42); query params: projectId, caseKey; returns test case with steps; supports token auth (used by `@lgtm/cli`)
 - `app/api/test-cases/[id]/route.ts` — Test case PATCH (update) + DELETE; supports token auth
 - `app/api/test-cases/[id]/steps/route.ts` — Test steps: GET (list) + POST (create step)
 - `app/api/test-cases/[id]/steps/reorder/route.ts` — PUT reorder steps
@@ -82,6 +83,7 @@ Affected API routes: `test-cases`, `test-runs`, `test-results`, `defects`, `envi
 - `app/api/test-results/[id]/steps/route.ts` — Step results: GET (fetch) + PUT (bulk upsert)
 - `app/api/test-results/[id]/logs/route.ts` — Result-level logs: GET (fetch chunks) + POST (append chunk)
 - `app/api/defects/route.ts` — Defects: GET (list by projectId) + POST (create with auto-incrementing defect number/key); supports token auth
+- `app/api/defects/by-key/route.ts` — GET defect by human-readable key (e.g., ENG-D-42); query param: defectKey; supports token auth (used by `@lgtm/cli`)
 - `app/api/defects/[id]/route.ts` — Defect: GET + PATCH (update fields/status/resolution) + DELETE (soft-delete); supports token auth
 - `app/api/comments/route.ts` — Comments: GET (list by entity) + POST (create)
 - `app/api/comments/[id]/route.ts` — Comment PATCH (edit) + DELETE
@@ -279,11 +281,19 @@ curl -X GET "http://localhost:3000/api/test-cases?projectId=xxx" \
 - Comprehensive activity logging
 
 **Supported API routes:**
+- `/api/teams` (GET) — list accessible projects
 - `/api/environments` (GET, POST) + `/api/environments/[id]` (PUT, DELETE)
 - `/api/cycles` (GET, POST) + `/api/cycles/[id]` (PUT, DELETE)
 - `/api/workspace-cycles` (GET, POST) + `/api/workspace-cycles/[id]` (PUT, DELETE)
 - `/api/test-cases` (POST) + `/api/test-cases/[id]` (PATCH, DELETE)
-- Additional routes can be updated following the same pattern
+- `/api/test-cases/by-key` (GET) — lookup by human-readable key
+- `/api/test-repo` (GET) — tree data for test cases
+- `/api/test-runs` (GET, POST) + `/api/test-runs/[id]` (GET, PATCH, DELETE)
+- `/api/test-runs/[id]/results` (POST) — bulk submit results
+- `/api/defects` (GET, POST) + `/api/defects/[id]` (GET, PATCH, DELETE)
+- `/api/defects/by-key` (GET) — lookup by human-readable key
+
+These routes are used by `@lgtm/cli` and `@lgtm/playwright-reporter`. Additional routes can be updated following the same pattern.
 
 ### Onboarding
 

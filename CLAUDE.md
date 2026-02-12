@@ -12,6 +12,7 @@ This is a **pnpm workspace monorepo**. Package manager is pnpm (v9).
 │   └── web/                    # Next.js web application (@lgtm/web)
 ├── packages/
 │   ├── shared/                 # Shared types, constants, API client (@lgtm/shared)
+│   ├── cli/                    # CLI tool for agents and developers (@lgtm/cli)
 │   └── playwright-reporter/    # Playwright test reporter (@lgtm/playwright-reporter)
 ├── pnpm-workspace.yaml
 ├── .npmrc
@@ -28,6 +29,7 @@ pnpm build            # Build all packages then the web app
 pnpm build:packages   # Build all packages in packages/ (dependency order)
 pnpm build:shared     # Build @lgtm/shared only
 pnpm build:reporter   # Build @lgtm/playwright-reporter only
+pnpm build:cli        # Build @lgtm/cli only
 pnpm lint             # ESLint (v9 flat config)
 pnpm db:generate      # Generate Drizzle migration SQL from schema changes
 pnpm db:migrate       # Apply pending migrations to the database
@@ -61,12 +63,14 @@ pnpm add -w -D <package>
 |---------|------|-------------|
 | `@lgtm/web` | `apps/web/` | Next.js 16 web application — test case management system |
 | `@lgtm/shared` | `packages/shared/` | Shared constants, TypeScript types, and API client |
+| `@lgtm/cli` | `packages/cli/` | CLI tool for AI agents and developers (`npx @lgtm/cli` or `lgtm`) |
 | `@lgtm/playwright-reporter` | `packages/playwright-reporter/` | Custom Playwright reporter that uploads results to LGTM API |
 
 ## Key Paths
 
 - **Web app source**: `apps/web/` (has its own `CLAUDE.md` with detailed architecture docs)
 - **Shared package**: `packages/shared/` (has its own `CLAUDE.md`)
+- **CLI tool**: `packages/cli/`
 - **Playwright reporter**: `packages/playwright-reporter/` (has its own `CLAUDE.md`)
 - **DB schema**: `apps/web/db/schema.ts`
 - **DB migrations**: `apps/web/drizzle/`
@@ -79,6 +83,7 @@ pnpm add -w -D <package>
 
 ```
 @lgtm/web ──depends──▶ @lgtm/shared
+@lgtm/cli ──depends──▶ @lgtm/shared
 @lgtm/playwright-reporter ──depends──▶ @lgtm/shared
                                        @playwright/test (peer)
 ```
