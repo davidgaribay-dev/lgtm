@@ -6,6 +6,7 @@ import { MessageSquare, Loader2 } from "lucide-react";
 import { CommentThread } from "./comment-thread";
 import { CommentEditor } from "./comment-editor";
 import type { CommentData, ReactionData, MentionData, UserData } from "./types";
+import type { CommentEntityType } from "@/lib/comment-utils";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -17,7 +18,7 @@ interface CommentsResponse {
 }
 
 interface CommentSectionProps {
-  entityType: "test_case" | "test_result" | "defect";
+  entityType: CommentEntityType;
   entityId: string;
   projectId: string;
   currentUserId: string;

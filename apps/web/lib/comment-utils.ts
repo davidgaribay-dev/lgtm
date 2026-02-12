@@ -13,7 +13,7 @@ export const LEGACY_EMOJI_MAP: Record<string, string> = {
 };
 
 /** Valid entity types that can have comments attached. */
-export const VALID_ENTITY_TYPES = ["test_case", "test_result"] as const;
+export const VALID_ENTITY_TYPES = ["test_case", "test_result", "defect", "test_run"] as const;
 
 export type CommentEntityType = (typeof VALID_ENTITY_TYPES)[number];
 

@@ -13,7 +13,7 @@ import {
   getCommentById,
 } from "@/lib/queries/comments";
 import { getTeamMembers } from "@/lib/queries/team-members";
-import { isValidEntityType, parseMentions } from "@/lib/comment-utils";
+import { isValidEntityType, parseMentions, VALID_ENTITY_TYPES } from "@/lib/comment-utils";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   if (!isValidEntityType(entityType)) {
     return NextResponse.json(
-      { error: "entityType must be test_case or test_result" },
+      { error: `entityType must be one of: ${VALID_ENTITY_TYPES.join(", ")}` },
       { status: 400 },
     );
   }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
 
   if (!isValidEntityType(entityType)) {
     return NextResponse.json(
-      { error: "entityType must be test_case or test_result" },
+      { error: `entityType must be one of: ${VALID_ENTITY_TYPES.join(", ")}` },
       { status: 400 },
     );
   }

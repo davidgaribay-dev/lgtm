@@ -511,7 +511,7 @@ function WorkspaceHeader({
   return (
     <div
       className={cn(
-        "flex items-center border-b",
+        "flex items-center",
         expanded ? "px-3 py-3" : "flex-col gap-2 px-0 py-3",
       )}
     >

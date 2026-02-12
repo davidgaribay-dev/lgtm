@@ -3,6 +3,7 @@ import {
   comment,
   commentReaction,
   commentMention,
+  defect,
   testCase,
   testResult,
   testRun,
@@ -124,7 +125,7 @@ export async function getCommentCount(
 }
 
 /**
- * Resolve projectId from an entity (test_case or test_result).
+ * Resolve projectId from an entity.
  * Returns null if the entity does not exist.
  */
 export async function resolveProjectId(
@@ -146,6 +147,24 @@ export async function resolveProjectId(
       .from(testResult)
       .innerJoin(testRun, eq(testResult.testRunId, testRun.id))
       .where(eq(testResult.id, entityId))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+    return row?.projectId ?? null;
+  }
+  if (entityType === "defect") {
+    const row = await db
+      .select({ projectId: defect.projectId })
+      .from(defect)
+      .where(and(eq(defect.id, entityId), isNull(defect.deletedAt)))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+    return row?.projectId ?? null;
+  }
+  if (entityType === "test_run") {
+    const row = await db
+      .select({ projectId: testRun.projectId })
+      .from(testRun)
+      .where(eq(testRun.id, entityId))
       .limit(1)
       .then((rows) => rows[0] ?? null);
     return row?.projectId ?? null;
