@@ -443,6 +443,7 @@ export const testRun = pgTable(
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
     runNumber: integer("run_number"),
+    runKey: text("run_key"),
     description: text("description"),
     projectId: text("project_id")
       .notNull()
@@ -474,6 +475,7 @@ export const testRun = pgTable(
     index("test_run_environment_id_idx").on(table.environmentId),
     index("test_run_cycle_id_idx").on(table.cycleId),
     index("test_run_workspace_cycle_id_idx").on(table.workspaceCycleId),
+    index("test_run_run_key_idx").on(table.runKey),
   ],
 );
 

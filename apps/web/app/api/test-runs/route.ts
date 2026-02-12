@@ -169,6 +169,7 @@ export async function POST(request: NextRequest) {
     .where(eq(project.id, projectId))
     .returning({
       nextRunNumber: project.nextRunNumber,
+      key: project.key,
     });
 
   if (!team) {
@@ -176,6 +177,7 @@ export async function POST(request: NextRequest) {
   }
 
   const runNumber = team.nextRunNumber;
+  const runKey = `${team.key}-TR-${runNumber}`;
   const source = authContext.type === "api_token" ? "api" : "manual";
 
   // Create the test run
@@ -184,6 +186,7 @@ export async function POST(request: NextRequest) {
     .values({
       name: name.trim(),
       runNumber,
+      runKey,
       description: description?.trim() || null,
       projectId,
       environmentId: environmentId || null,

@@ -21,6 +21,7 @@ export interface TestRunRow {
   id: string;
   name: string;
   runNumber: number | null;
+  runKey: string | null;
   status: string;
   environmentName: string | null;
   startedAt: Date | string | null;
@@ -64,7 +65,7 @@ export function getTestRunColumns({
         const run = row.original;
         return (
           <Link
-            href={`/${workspaceSlug}/${teamKey}/test-runs/${run.id}`}
+            href={`/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}`}
             className="font-mono text-xs text-muted-foreground hover:text-foreground"
           >
             #{run.runNumber}
@@ -79,7 +80,7 @@ export function getTestRunColumns({
         const run = row.original;
         return (
           <Link
-            href={`/${workspaceSlug}/${teamKey}/test-runs/${run.id}`}
+            href={`/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}`}
             className="font-medium hover:underline"
           >
             {run.name}

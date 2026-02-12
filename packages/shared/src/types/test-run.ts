@@ -5,6 +5,7 @@ export interface TestRun extends AuditFields {
   id: string;
   name: string;
   runNumber: number;
+  runKey: string;
   description: string | null;
   projectId: string;
   testPlanId: string | null;

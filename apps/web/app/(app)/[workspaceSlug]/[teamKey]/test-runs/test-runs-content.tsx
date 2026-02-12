@@ -180,7 +180,7 @@ export function TestRunsContent({
               run.status === "pending" || run.status === "in_progress";
             return (
               <Link
-                href={`/${workspaceSlug}/${teamKey}/test-runs/${run.id}`}
+                href={`/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}`}
                 className={groupedListRowClass}
               >
                 <DropdownMenu>

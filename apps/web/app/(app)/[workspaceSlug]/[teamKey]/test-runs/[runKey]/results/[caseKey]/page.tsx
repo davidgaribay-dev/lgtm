@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { getProjectByTeamKey } from "@/lib/queries/workspace";
 import {
-  getTestRun,
-  getTestResult,
-  getTestRunResultIds,
+  getTestRunByKey,
+  getTestResultByCaseKey,
+  getTestRunResultCaseKeys,
   getTestResultSteps,
 } from "@/lib/queries/test-runs";
 import { hasResultLogs } from "@/lib/queries/test-run-logs";
@@ -17,30 +17,32 @@ export default async function TestResultExecutionPage({
   params: Promise<{
     workspaceSlug: string;
     teamKey: string;
-    runId: string;
-    resultId: string;
+    runKey: string;
+    caseKey: string;
   }>;
 }) {
-  const { workspaceSlug, teamKey, runId, resultId } = await params;
+  const { workspaceSlug, teamKey, runKey, caseKey } = await params;
 
   const team = await getProjectByTeamKey(workspaceSlug, teamKey);
   if (!team) notFound();
 
-  const [run, result, resultIds, steps, hasLogs, environments, cycles] =
-    await Promise.all([
-      getTestRun(runId),
-      getTestResult(resultId),
-      getTestRunResultIds(runId),
-      getTestResultSteps(resultId),
-      hasResultLogs(resultId),
-      getProjectEnvironments(team.id),
-      getProjectCycles(team.id),
-    ]);
+  const run = await getTestRunByKey(runKey);
+  if (!run) notFound();
+  if (run.projectId !== team.id) notFound();
 
-  if (!run || !result) notFound();
+  const [result, resultCaseKeys] = await Promise.all([
+    getTestResultByCaseKey(run.id, caseKey),
+    getTestRunResultCaseKeys(run.id),
+  ]);
 
-  // Verify result belongs to this run
-  if (result.testRunId !== runId) notFound();
+  if (!result) notFound();
+
+  const [steps, hasLogs, environments, cycles] = await Promise.all([
+    getTestResultSteps(result.id),
+    hasResultLogs(result.id),
+    getProjectEnvironments(team.id),
+    getProjectCycles(team.id),
+  ]);
 
   return (
     <TestResultExecutionContent
@@ -48,16 +50,17 @@ export default async function TestResultExecutionPage({
         id: run.id,
         name: run.name,
         runNumber: run.runNumber,
+        runKey: run.runKey,
       }}
       result={result}
       steps={steps}
-      resultIds={resultIds}
+      resultCaseKeys={resultCaseKeys}
       teamKey={team.key}
       workspaceSlug={workspaceSlug}
       hasLogs={hasLogs}
       projectId={team.id}
-      environments={environments.map((e) => ({ id: e.id, name: e.name }))}
-      cycles={cycles.map((c) => ({ id: c.id, name: c.name }))}
+      environments={environments.map((e: { id: string; name: string }) => ({ id: e.id, name: e.name }))}
+      cycles={cycles.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))}
     />
   );
 }

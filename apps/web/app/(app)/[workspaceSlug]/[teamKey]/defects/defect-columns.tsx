@@ -68,7 +68,7 @@ export function getDefectColumns({
         const defect = row.original;
         return (
           <Link
-            href={`/${workspaceSlug}/${teamKey}/defects/${defect.id}`}
+            href={`/${workspaceSlug}/${teamKey}/defects/${defect.defectKey}`}
             className="font-mono text-xs text-muted-foreground hover:text-foreground"
           >
             {defect.defectKey}
@@ -83,7 +83,7 @@ export function getDefectColumns({
         const defect = row.original;
         return (
           <Link
-            href={`/${workspaceSlug}/${teamKey}/defects/${defect.id}`}
+            href={`/${workspaceSlug}/${teamKey}/defects/${defect.defectKey}`}
             className="font-medium hover:underline"
           >
             {defect.title}

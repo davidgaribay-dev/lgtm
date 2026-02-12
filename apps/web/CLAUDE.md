@@ -115,13 +115,18 @@ Teams use short, immutable keys (similar to Jira project keys) instead of slugs 
 
 **URL structure:**
 - Team pages: `/{workspaceSlug}/{teamKey}/test-repo` (e.g., `/acme/ENG/test-repo`)
+- Test run detail: `/{workspaceSlug}/{teamKey}/test-runs/{runKey}` (e.g., `/acme/ENG/test-runs/ENG-TR-42`)
+- Test result: `/{workspaceSlug}/{teamKey}/test-runs/{runKey}/results/{caseKey}` (e.g., `/acme/ENG/test-runs/ENG-TR-42/results/ENG-7`)
+- Defect detail: `/{workspaceSlug}/{teamKey}/defects/{defectKey}` (e.g., `/acme/ENG/defects/ENG-D-42`)
+- API routes remain UUID-based (e.g., `/api/test-runs/{id}`, `/api/defects/{id}`)
 - Middleware normalizes lowercase keys to uppercase automatically
 
-**Test case identifiers:**
-- Format: `{TEAM-KEY}-{number}` (e.g., "ENG-42", "QA-123")
-- Stored in `test_case.case_key` column
-- Auto-incrementing per team via `project.next_test_case_number`
-- Generated atomically in transaction during test case creation
+**Human-readable identifiers:**
+- Test cases: `{TEAM_KEY}-{number}` (e.g., "ENG-42") — stored in `test_case.case_key`
+- Test runs: `{TEAM_KEY}-TR-{number}` (e.g., "ENG-TR-2") — stored in `test_run.run_key`
+- Defects: `{TEAM_KEY}-D-{number}` (e.g., "ENG-D-42") — stored in `defect.defect_key`
+- All auto-incrementing per team, generated atomically during creation
+- Server pages resolve keys to entities, then use UUIDs for API/query calls
 
 **Key generation:**
 - `generateTeamKey(name, existingKeys)` in `lib/utils.ts`
@@ -356,7 +361,7 @@ Application tables use snake_case column names and are organized into three doma
 **Test Execution (project-scoped):**
 - `test_plan` — planned collection of test cases (draft/active/completed/archived); managed via team settings UI; query helpers in `lib/queries/test-plans.ts`: `getProjectTestPlans()`, `getTestPlanCases()`
 - `test_plan_case` — junction table linking plans to test cases with `display_order`; unique on (test_plan_id, test_case_id)
-- `test_run` — execution instance (linked to plan or ad-hoc), tracks environment (legacy text field + `environment_id` FK to `environment` table), cycle associations (dual FKs), and timing
+- `test_run` — execution instance (linked to plan or ad-hoc), tracks environment (legacy text field + `environment_id` FK to `environment` table), cycle associations (dual FKs), and timing; has `run_number` (auto-incremented per project) and `run_key` (human-readable key, format `{TEAM_KEY}-TR-{number}`, e.g., `MOAPP-TR-2`); page URLs use `run_key` instead of UUID
 - `test_result` — verdict per test case per run (passed/failed/blocked/skipped/untested), with cycle defect tracking via dual FKs
 - `test_step_result` — per-step granular results
 - `test_run_log` — log chunks for CI/automation output (test_run_id, test_result_id nullable for run-level vs result-level scoping, step_name, chunk_index, content, line_offset, line_count); unique index on `(test_run_id, test_result_id, chunk_index)`; cascades on run/result delete
@@ -440,8 +445,8 @@ The test runs feature provides test execution management at `/{workspace}/{team}
 
 **Pages:**
 - `test-runs/page.tsx` → `test-runs-content.tsx` — list of test runs with `PageBreadcrumb` + `GroupedList` (grouped by run status), create dialog, environment/cycle selectors
-- `test-runs/[runId]/page.tsx` → `test-run-detail-content.tsx` — run detail with `GroupedList` results (grouped by result status), pie chart metrics, properties sidebar, and logs tab
-- `test-runs/[runId]/results/[resultId]/page.tsx` → `test-result-execution-content.tsx` — individual result execution with step-by-step status, overall verdict, comment, duration, and logs tab
+- `test-runs/[runKey]/page.tsx` → `test-run-detail-content.tsx` — run detail with `GroupedList` results (grouped by result status), pie chart metrics, properties sidebar, and logs tab; `runKey` format is `{TEAM_KEY}-TR-{number}` (e.g., `MOAPP-TR-2`); server page resolves `runKey` to run via `getTestRunByKey()`, then uses UUID for API calls
+- `test-runs/[runKey]/results/[caseKey]/page.tsx` → `test-result-execution-content.tsx` — individual result execution with step-by-step status, overall verdict, comment, duration, and logs tab; `caseKey` is the test case's human-readable key (e.g., `ENG-7`); server page resolves `caseKey` to result via `getTestResultByCaseKey()`, then uses UUID for API calls
 
 **Supporting files:**
 - `test-run-columns.tsx` — `TestRunRow` type definition (used by runs list `GroupedList`)
@@ -464,13 +469,15 @@ The test runs feature provides test execution management at `/{workspace}/{team}
 - Keyboard shortcuts: 1=Passed, 2=Failed, 3=Blocked, 4=Skipped, J=Next, K=Previous
 
 **Query helpers (`lib/queries/test-runs.ts`):**
-- `getProjectTestRuns(projectId)` — list runs with computed result metrics
-- `getTestRun(runId)` — single run with environment, cycle, and creator info
+- `getProjectTestRuns(projectId)` — list runs with computed result metrics (includes `runKey`)
+- `getTestRun(runId)` — single run with environment, cycle, and creator info (includes `runKey`)
+- `getTestRunByKey(runKey)` — single run looked up by human-readable key (e.g., `MOAPP-TR-2`); used by `[runKey]` server pages
 - `getTestRunResults(runId)` — results joined with test case/section info
 - `getRunMetrics(runId)` — aggregated counts (passed, failed, blocked, skipped, untested, total, passRate)
 - `computeRunStatus(runId)` — suggest run status based on result distribution
 - `getTestResult(resultId)` — single result with case info
-- `getTestRunResultIds(runId)` — ordered IDs for prev/next navigation
+- `getTestResultByCaseKey(runId, caseKey)` — single result looked up by run ID and test case key (e.g., `ENG-7`); used by `[caseKey]` server page
+- `getTestRunResultCaseKeys(runId)` — ordered case keys for prev/next navigation
 - `getTestResultSteps(resultId)` — steps with existing step results
 
 **Log infrastructure:**
@@ -485,7 +492,7 @@ Defect/bug tracking at `/{workspace}/{team}/defects`, following the same list-vi
 
 **Pages:**
 - `defects/page.tsx` → `defects-content.tsx` — list of defects with `PageBreadcrumb` + `GroupedList` (grouped by defect status: open, in_progress, reopened, fixed, verified, closed, deferred, rejected, duplicate), create dialog
-- `defects/[defectId]/page.tsx` → `defect-detail-content.tsx` — defect detail with editable fields, properties sidebar, comments, status transitions
+- `defects/[defectKey]/page.tsx` → `defect-detail-content.tsx` — defect detail with editable fields, properties sidebar, comments, status transitions; `defectKey` format is `{TEAM_KEY}-D-{number}` (e.g., `ENGT-D-42`); server page resolves `defectKey` to defect via `getDefectByKey()`
 
 **Supporting files:**
 - `defect-columns.tsx` — `DefectRow` type definition (used by defects list `GroupedList`)
@@ -503,7 +510,8 @@ Defect/bug tracking at `/{workspace}/{team}/defects`, following the same list-vi
 
 **Query helpers (`lib/queries/defects.ts`):**
 - `getProjectDefects(projectId)` — list defects with assignee, environment, test case joins
-- `getDefect(defectId)` — single defect with full joins
+- `getDefect(defectId)` — single defect with full joins (includes `testRunKey`)
+- `getDefectByKey(defectKey)` — single defect looked up by human-readable key (e.g., `ENGT-D-42`); used by `[defectKey]` server page
 - `getDefectsForTestResult(testResultId)` — defects linked to a specific test result
 
 ### Comments

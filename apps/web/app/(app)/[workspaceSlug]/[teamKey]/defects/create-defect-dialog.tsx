@@ -53,6 +53,7 @@ export function CreateDefectDialog({
 
   // Created defect tracking
   const [defectId, setDefectId] = useState<string | null>(null);
+  const [defectKey, setDefectKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   // Form state
@@ -125,6 +126,7 @@ export function CreateDefectDialog({
       })
       .then((data) => {
         setDefectId(data.id);
+        setDefectKey(data.defectKey);
         savedRef.current = {
           title: initialTitle,
           description: "",
@@ -237,12 +239,13 @@ export function CreateDefectDialog({
   // Close handler — navigate to created defect
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
-      if (defectId) {
-        router.push(`/${workspaceSlug}/${teamKey}/defects/${defectId}`);
+      if (defectKey) {
+        router.push(`/${workspaceSlug}/${teamKey}/defects/${defectKey}`);
         router.refresh();
       }
       // Reset state
       setDefectId(null);
+      setDefectKey(null);
       creatingRef.current = false;
       setCreating(false);
       setTitle(prefill?.title ?? "");

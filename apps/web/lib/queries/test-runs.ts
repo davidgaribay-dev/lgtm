@@ -28,6 +28,7 @@ export async function getProjectTestRuns(projectId: string) {
       id: testRun.id,
       name: testRun.name,
       runNumber: testRun.runNumber,
+      runKey: testRun.runKey,
       description: testRun.description,
       status: testRun.status,
       environmentId: testRun.environmentId,
@@ -107,6 +108,7 @@ export async function getTestRun(runId: string) {
       id: testRun.id,
       name: testRun.name,
       runNumber: testRun.runNumber,
+      runKey: testRun.runKey,
       description: testRun.description,
       projectId: testRun.projectId,
       testPlanId: testRun.testPlanId,
@@ -130,6 +132,47 @@ export async function getTestRun(runId: string) {
     .leftJoin(workspaceCycle, eq(testRun.workspaceCycleId, workspaceCycle.id))
     .leftJoin(user, eq(testRun.createdBy, user.id))
     .where(and(eq(testRun.id, runId), isNull(testRun.deletedAt)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+/** Get a single test run by its human-readable key (e.g. "MOAPP-TR-2"). */
+export async function getTestRunByKey(runKey: string) {
+  const rows = await db
+    .select({
+      id: testRun.id,
+      name: testRun.name,
+      runNumber: testRun.runNumber,
+      runKey: testRun.runKey,
+      description: testRun.description,
+      projectId: testRun.projectId,
+      testPlanId: testRun.testPlanId,
+      status: testRun.status,
+      environmentId: testRun.environmentId,
+      environmentName: environment.name,
+      cycleId: testRun.cycleId,
+      cycleName: cycle.name,
+      workspaceCycleId: testRun.workspaceCycleId,
+      workspaceCycleName: workspaceCycle.name,
+      startedAt: testRun.startedAt,
+      completedAt: testRun.completedAt,
+      executedBy: testRun.executedBy,
+      createdAt: testRun.createdAt,
+      createdBy: testRun.createdBy,
+      createdByName: user.name,
+    })
+    .from(testRun)
+    .leftJoin(environment, eq(testRun.environmentId, environment.id))
+    .leftJoin(cycle, eq(testRun.cycleId, cycle.id))
+    .leftJoin(workspaceCycle, eq(testRun.workspaceCycleId, workspaceCycle.id))
+    .leftJoin(user, eq(testRun.createdBy, user.id))
+    .where(
+      and(
+        eq(testRun.runKey, runKey),
+        isNull(testRun.deletedAt),
+      ),
+    )
     .limit(1);
 
   return rows[0] ?? null;
@@ -270,10 +313,52 @@ export async function getTestResult(resultId: string) {
   return rows[0] ?? null;
 }
 
-/** Fetch ordered result IDs for a test run (for prev/next navigation). */
-export async function getTestRunResultIds(runId: string): Promise<string[]> {
+/** Fetch a single test result by run ID and case key (for URL-based lookups). */
+export async function getTestResultByCaseKey(runId: string, caseKey: string) {
+  const executedByUser = db
+    .select({ id: user.id, name: user.name, image: user.image })
+    .from(user)
+    .as("executed_user");
+
   const rows = await db
-    .select({ id: testResult.id })
+    .select({
+      id: testResult.id,
+      testRunId: testResult.testRunId,
+      testCaseId: testResult.testCaseId,
+      status: testResult.status,
+      source: testResult.source,
+      executedBy: testResult.executedBy,
+      executedByName: executedByUser.name,
+      executedByImage: executedByUser.image,
+      executedAt: testResult.executedAt,
+      duration: testResult.duration,
+      comment: testResult.comment,
+      caseTitle: testCase.title,
+      caseKey: testCase.caseKey,
+      casePriority: testCase.priority,
+      caseType: testCase.type,
+      sectionId: testCase.sectionId,
+      sectionName: section.name,
+    })
+    .from(testResult)
+    .innerJoin(testCase, eq(testResult.testCaseId, testCase.id))
+    .leftJoin(section, eq(testCase.sectionId, section.id))
+    .leftJoin(executedByUser, eq(testResult.executedBy, executedByUser.id))
+    .where(
+      and(
+        eq(testResult.testRunId, runId),
+        eq(testCase.caseKey, caseKey),
+      ),
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+/** Fetch ordered result case keys for a test run (for prev/next navigation). */
+export async function getTestRunResultCaseKeys(runId: string): Promise<string[]> {
+  const rows = await db
+    .select({ caseKey: testCase.caseKey })
     .from(testResult)
     .innerJoin(testCase, eq(testResult.testCaseId, testCase.id))
     .leftJoin(section, eq(testCase.sectionId, section.id))
@@ -285,7 +370,7 @@ export async function getTestRunResultIds(runId: string): Promise<string[]> {
       asc(testCase.title),
     );
 
-  return rows.map((r) => r.id);
+  return rows.map((r) => r.caseKey).filter((k): k is string => k !== null);
 }
 
 /** Fetch test steps with any existing step results for a test result. */

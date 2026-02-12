@@ -144,7 +144,7 @@ export function CreateTestRunDialog({
       const created = await res.json();
       onOpenChange(false);
       router.push(
-        `/${workspaceSlug}/${teamKey}/test-runs/${created.id}`,
+        `/${workspaceSlug}/${teamKey}/test-runs/${created.runKey}`,
       );
       router.refresh();
     } catch {

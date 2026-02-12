@@ -71,6 +71,7 @@ interface TestRunDetail {
   id: string;
   name: string;
   runNumber: number | null;
+  runKey: string | null;
   description: string | null;
   projectId: string;
   testPlanId: string | null;
@@ -379,7 +380,7 @@ export function TestRunDetailContent({
               emptyDescription="This test run has no test cases assigned."
               renderRow={(result) => (
                 <Link
-                  href={`/${workspaceSlug}/${teamKey}/test-runs/${run.id}/results/${result.id}`}
+                  href={`/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}/results/${result.caseKey}`}
                   className={groupedListRowClass}
                 >
                   {/* Status change dropdown */}

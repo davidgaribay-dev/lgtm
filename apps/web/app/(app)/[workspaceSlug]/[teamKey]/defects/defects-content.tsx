@@ -124,7 +124,7 @@ export function DefectsContent({
       });
       if (!res.ok) return;
       const created = await res.json();
-      router.push(`/${workspaceSlug}/${teamKey}/defects/${created.id}`);
+      router.push(`/${workspaceSlug}/${teamKey}/defects/${created.defectKey}`);
     } finally {
       setCreating(false);
     }
@@ -183,7 +183,7 @@ export function DefectsContent({
           }
           renderRow={(defect) => (
             <Link
-              href={`/${workspaceSlug}/${teamKey}/defects/${defect.id}`}
+              href={`/${workspaceSlug}/${teamKey}/defects/${defect.defectKey}`}
               className={groupedListRowClass}
             >
               <DropdownMenu>

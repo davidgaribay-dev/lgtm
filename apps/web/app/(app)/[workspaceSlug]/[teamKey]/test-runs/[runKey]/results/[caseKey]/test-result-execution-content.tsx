@@ -51,6 +51,7 @@ interface RunInfo {
   id: string;
   name: string;
   runNumber: number | null;
+  runKey: string | null;
 }
 
 interface ResultInfo {
@@ -95,7 +96,7 @@ interface TestResultExecutionContentProps {
   run: RunInfo;
   result: ResultInfo;
   steps: StepData[];
-  resultIds: string[];
+  resultCaseKeys: string[];
   teamKey: string;
   workspaceSlug: string;
   hasLogs: boolean;
@@ -141,7 +142,7 @@ function TestResultExecutionInner({
   run,
   result,
   steps: initialSteps,
-  resultIds,
+  resultCaseKeys,
   teamKey,
   workspaceSlug,
   hasLogs,
@@ -210,20 +211,20 @@ function TestResultExecutionInner({
   }
 
   // Navigation
-  const currentIndex = resultIds.indexOf(result.id);
+  const currentIndex = resultCaseKeys.indexOf(result.caseKey!);
   const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex < resultIds.length - 1;
+  const canGoNext = currentIndex < resultCaseKeys.length - 1;
 
   const navigateTo = useCallback(
     (index: number) => {
-      const targetId = resultIds[index];
-      if (targetId) {
+      const targetCaseKey = resultCaseKeys[index];
+      if (targetCaseKey) {
         router.push(
-          `/${workspaceSlug}/${teamKey}/test-runs/${run.id}/results/${targetId}`,
+          `/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}/results/${targetCaseKey}`,
         );
       }
     },
-    [resultIds, router, workspaceSlug, teamKey, run.id],
+    [resultCaseKeys, router, workspaceSlug, teamKey, run.runKey],
   );
 
   // Keyboard shortcuts
@@ -418,7 +419,7 @@ function TestResultExecutionInner({
         <PageBreadcrumb
           items={[
             { label: "Test Runs", href: `/${workspaceSlug}/${teamKey}/test-runs` },
-            { label: `${run.name}${run.runNumber ? ` #${run.runNumber}` : ""}`, href: `/${workspaceSlug}/${teamKey}/test-runs/${run.id}` },
+            { label: `${run.name}${run.runNumber ? ` #${run.runNumber}` : ""}`, href: `/${workspaceSlug}/${teamKey}/test-runs/${run.runKey}` },
             { label: result.caseKey ?? result.caseTitle },
           ]}
         >
@@ -440,7 +441,7 @@ function TestResultExecutionInner({
             </span>
           )}
           <span className="text-xs tabular-nums text-muted-foreground">
-            {currentIndex + 1} of {resultIds.length}
+            {currentIndex + 1} of {resultCaseKeys.length}
           </span>
           <div className="flex items-center gap-0.5">
             <Tooltip>

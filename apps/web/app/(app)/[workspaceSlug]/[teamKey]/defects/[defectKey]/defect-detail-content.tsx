@@ -69,6 +69,8 @@ interface DefectInfo {
   testResultId: string | null;
   testRunId: string | null;
   testRunName: string | null;
+  testRunNumber: number | null;
+  testRunKey: string | null;
   testCaseId: string | null;
   testCaseKey: string | null;
   testCaseTitle: string | null;
@@ -535,13 +537,13 @@ function DefectDetailInner({
                   </div>
                 )}
 
-                {defect.testRunId && defect.testRunName && (
+                {defect.testRunId && defect.testRunName && defect.testRunKey && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
                       Test Run
                     </span>
                     <Link
-                      href={`/${workspaceSlug}/${teamKey}/test-runs/${defect.testRunId}`}
+                      href={`/${workspaceSlug}/${teamKey}/test-runs/${defect.testRunKey}`}
                       className="text-sm hover:underline"
                     >
                       {defect.testRunName}
