@@ -8,6 +8,7 @@ import {
 import { WorkspaceProvider } from "@/lib/workspace-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarMainArea } from "@/components/sidebar-main-area";
+import { DndProviderWrapper } from "@/components/dnd-provider-wrapper";
 
 export default async function WorkspaceLayout({
   children,
@@ -45,12 +46,14 @@ export default async function WorkspaceLayout({
         isAdmin,
       }}
     >
-      <div className="min-h-svh bg-muted dark:bg-background">
-        <AppSidebar user={session.user} />
-        <SidebarMainArea>
-          <main>{children}</main>
-        </SidebarMainArea>
-      </div>
+      <DndProviderWrapper>
+        <div className="min-h-svh bg-muted dark:bg-background">
+          <AppSidebar user={session.user} />
+          <SidebarMainArea>
+            <main>{children}</main>
+          </SidebarMainArea>
+        </div>
+      </DndProviderWrapper>
     </WorkspaceProvider>
   );
 }

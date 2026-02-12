@@ -23,7 +23,7 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 - `app/(auth)/` — public auth pages (login, signup, forgot-password, reset-password) and invitation acceptance (`invite/[id]`) with centered card layout
 - `app/(app)/[workspaceSlug]/` — protected workspace-scoped pages (dashboard, teams, settings, team sub-pages); layout validates workspace membership, redirects unauthenticated users, and guards against incomplete onboarding
 - `app/(app)/[workspaceSlug]/settings/` — workspace settings pages (profile, security, tokens, members)
-- `app/(app)/[workspaceSlug]/[teamKey]/` — team-scoped pages (test-repo, test-runs, environments, views); teamKey is 2-10 uppercase letters (e.g., "ENG", "QA")
+- `app/(app)/[workspaceSlug]/[teamKey]/` — team-scoped pages (test-repo, test-runs, defects, environments); teamKey is 2-10 uppercase letters (e.g., "ENG", "QA")
 - `app/(app)/[workspaceSlug]/[teamKey]/settings/` — team settings pages (overview, members, tokens); requires team admin/owner permissions
 - `app/onboarding/` — onboarding flow for new users (workspace creation, team invitations, first team creation); requires auth, redirects to dashboard when complete
 - `app/api/auth/[...all]/route.ts` — Better Auth catch-all
@@ -46,6 +46,31 @@ Next.js 16 app using App Router, React 19, TypeScript (strict), Tailwind CSS 4, 
 - `app/api/workspace-cycles/[id]/route.ts` — Workspace cycle PUT (update) + DELETE (soft-delete); admin/owner only; supports token auth
 - `app/api/test-cases/route.ts` — Test case POST (create); supports token auth
 - `app/api/test-cases/[id]/route.ts` — Test case PATCH (update) + DELETE; supports token auth
+- `app/api/test-cases/[id]/steps/route.ts` — Test steps: GET (list) + POST (create step)
+- `app/api/test-cases/[id]/steps/reorder/route.ts` — PUT reorder steps
+- `app/api/test-cases/[id]/clone/route.ts` — POST clone a test case
+- `app/api/test-steps/route.ts` — Test step POST (create)
+- `app/api/test-steps/[id]/route.ts` — Test step PUT (update) + DELETE
+- `app/api/test-suites/route.ts` — Test suite CRUD
+- `app/api/test-suites/[id]/route.ts` — Test suite update/delete
+- `app/api/test-plans/route.ts` — Test plan: GET (list by projectId) + POST (create with optional testCaseIds); supports token auth
+- `app/api/test-plans/[id]/route.ts` — Test plan: GET (with cases) + PATCH (update name/description/status) + DELETE (soft-delete); supports token auth
+- `app/api/test-plans/[id]/cases/route.ts` — Plan cases: GET (list with test case details) + PUT (replace entire case list)
+- `app/api/test-repo/route.ts` — GET tree data (suites + sections + test cases as TreeNode hierarchy) for client-side tree pickers; query param: projectId
+- `app/api/test-runs/route.ts` — Test run: GET (list by projectId) + POST (create); supports token auth
+- `app/api/test-runs/[id]/route.ts` — Test run: GET + PATCH (update status/metadata) + DELETE (soft-delete); supports token auth
+- `app/api/test-runs/[id]/results/route.ts` — POST bulk submit/update test results
+- `app/api/test-runs/[id]/logs/route.ts` — Run-level logs: GET (fetch chunks) + POST (append chunk)
+- `app/api/test-results/[id]/route.ts` — Test result PATCH (update status/comment/duration)
+- `app/api/test-results/[id]/steps/route.ts` — Step results: GET (fetch) + PUT (bulk upsert)
+- `app/api/test-results/[id]/logs/route.ts` — Result-level logs: GET (fetch chunks) + POST (append chunk)
+- `app/api/defects/route.ts` — Defects: GET (list by projectId) + POST (create with auto-incrementing defect number/key); supports token auth
+- `app/api/defects/[id]/route.ts` — Defect: GET + PATCH (update fields/status/resolution) + DELETE (soft-delete); supports token auth
+- `app/api/comments/route.ts` — Comments: GET (list by entity) + POST (create)
+- `app/api/comments/[id]/route.ts` — Comment PATCH (edit) + DELETE
+- `app/api/comments/[id]/resolve/route.ts` — POST toggle comment resolved state
+- `app/api/comments/[id]/reactions/route.ts` — POST toggle emoji reaction
+- `app/api/comments/mentions/route.ts` — GET search users for @mentions
 - `app/api/tokens/route.ts` — API token CRUD: POST (create) + GET (list user's tokens)
 - `app/api/tokens/[id]/route.ts` — API token management: PATCH (update metadata) + DELETE (revoke)
 - `app/api/onboarding/advance/route.ts` — Advances onboarding step and clears session cache
@@ -118,7 +143,7 @@ Teams use short, immutable keys (similar to Jira project keys) instead of slugs 
 - Four roles: **owner** (full control), **admin** (all except org delete), **member** (create/edit test cases, execute runs), **viewer** (read-only)
 - Invitation system: 7-day expiry, emails sent via Resend (falls back to console.log if `RESEND_API_KEY` not set)
 - Organization plugin tables: `organization`, `member`, `invitation` + `activeOrganizationId` on `session`
-- Permission resources: `organization`, `member`, `invitation`, `project`, `environment`, `cycle`, `workspaceCycle`, `testCase`, `testRun`, `testPlan`, `shareLink`, `projectMember`, `projectSettings`
+- Permission resources: `organization`, `member`, `invitation`, `project`, `environment`, `cycle`, `workspaceCycle`, `testCase`, `testRun`, `testPlan`, `defect`, `shareLink`, `projectMember`, `projectSettings`
 
 ### Team-level RBAC
 
@@ -264,17 +289,18 @@ Two distinct flows handle user registration:
 
 - **Profile** (`/{slug}/settings`) — name, photo, description
 - **Security** (`/{slug}/settings/security`) — password change
-- **API Tokens** (`/{slug}/settings/tokens`) — create and manage fine-grained access tokens for API access; Card-based UI matching members page layout
+- **API Tokens** (`/{slug}/settings/tokens`) — create and manage fine-grained access tokens for API access; uses `PageBreadcrumb` + `GroupedList` (grouped by effective status)
 - **Workspace Cycles** (`/{slug}/settings/cycles`) — organization-level release cycles for cross-team tracking; admin/owner only; supports API token auth
-- **Members** (`/{slug}/settings/members`) — workspace member management (invite, remove, change role, revoke invitations); only visible to org owners/admins; uses TanStack React Table with shadcn DataTable
+- **Members** (`/{slug}/settings/members`) — workspace member management (invite, remove, change role, revoke invitations); only visible to org owners/admins; uses DataTable
 
 **Team Settings** (`app/(app)/[workspaceSlug]/[teamKey]/settings/`) accessed via team dropdown menu:
 
 - **Overview** (`/{slug}/{teamKey}/settings`) — team name, description editing; team key is read-only (immutable after creation)
 - **Members** (`/{slug}/{teamKey}/settings/members`) — team member management (add org members to team, change team roles, remove from team); enforces last owner protection and self-removal prevention
-- **Environments** (`/{slug}/{teamKey}/settings/environments`) — team environment configuration (development, staging, qa, production, custom); supports API token auth
-- **Cycles** (`/{slug}/{teamKey}/settings/cycles`) — team-level sprint/cycle management for tracking test execution and defects; supports API token auth
-- **API Tokens** (`/{slug}/{teamKey}/settings/tokens`) — team-scoped API tokens; automatically scopes new tokens to the current team
+- **Environments** (`/{slug}/{teamKey}/settings/environments`) — team environment configuration (development, staging, qa, production, custom); `PageBreadcrumb` + `GroupedList` (grouped by type); supports API token auth
+- **Test Plans** (`/{slug}/{teamKey}/settings/test-plans`) — reusable test case selections for test runs; `PageBreadcrumb` + `GroupedList` (grouped by status: active/draft/completed/archived); CRUD with wider dialogs embedding `TestCaseTreePicker` for case selection; uses SWR + `useTeamSettings()` pattern; tree data fetched lazily from `GET /api/test-repo`
+- **Cycles** (`/{slug}/{teamKey}/settings/cycles`) — team-level sprint/cycle management; `PageBreadcrumb` + `GroupedList` (grouped by status); supports API token auth
+- **API Tokens** (`/{slug}/{teamKey}/settings/tokens`) — team-scoped API tokens; `PageBreadcrumb` + `GroupedList` (grouped by effective status); automatically scopes new tokens to the current team
 
 The sidebar forces expanded state on settings pages (both workspace and team), conditionally shows navigation items based on permissions, and detects team settings mode via path segments.
 
@@ -285,7 +311,7 @@ Better Auth owns seven tables (`user`, `session`, `account`, `verification`, `or
 Application tables use snake_case column names and are organized into three domains:
 
 **Organization-scoped:**
-- `project` — teams (called "teams" in UI, `project` in DB); has `key` (2-10 uppercase letters, immutable, unique per org), `display_order` for user-controlled ordering, `next_test_case_number` for auto-incrementing test case IDs
+- `project` — teams (called "teams" in UI, `project` in DB); has `key` (2-10 uppercase letters, immutable, unique per org), `display_order` for user-controlled ordering, `next_test_case_number` for auto-incrementing test case IDs, `next_defect_number` for auto-incrementing defect IDs
 - `project_member` — team membership with roles (project_id, user_id, role: team_owner/team_admin/team_member/team_viewer, audit fields)
 - `project_member_invitation` — team-level invitations (project_id, email, role, status, expires_at)
 - `workspace_cycle` — organization-level release cycles (name, status, start/end dates, is_current, display_order); partial unique index on `(organization_id, name)` where not deleted; admin/owner only; CRUD via `/api/workspace-cycles`; query helpers in `lib/queries/workspace-cycles.ts`
@@ -313,10 +339,19 @@ Application tables use snake_case column names and are organized into three doma
   - `test_result.defect_cycle_id` + `test_result.defect_workspace_cycle_id` — track defects found in specific cycles at either level
 
 **Test Execution (project-scoped):**
-- `test_plan` — planned collection of test cases (draft/active/completed/archived)
+- `test_plan` — planned collection of test cases (draft/active/completed/archived); managed via team settings UI; query helpers in `lib/queries/test-plans.ts`: `getProjectTestPlans()`, `getTestPlanCases()`
+- `test_plan_case` — junction table linking plans to test cases with `display_order`; unique on (test_plan_id, test_case_id)
 - `test_run` — execution instance (linked to plan or ad-hoc), tracks environment (legacy text field + `environment_id` FK to `environment` table), cycle associations (dual FKs), and timing
 - `test_result` — verdict per test case per run (passed/failed/blocked/skipped/untested), with cycle defect tracking via dual FKs
 - `test_step_result` — per-step granular results
+- `test_run_log` — log chunks for CI/automation output (test_run_id, test_result_id nullable for run-level vs result-level scoping, step_name, chunk_index, content, line_offset, line_count); unique index on `(test_run_id, test_result_id, chunk_index)`; cascades on run/result delete
+
+**Defect Tracking (project-scoped):**
+- `defect` — bug/defect reports (title, description, defect_number auto-incremented per project, defect_key e.g. "ENG-D-42", severity: blocker/critical/major/normal/minor/trivial, priority: critical/high/medium/low, defect_type: functional/ui/performance/security/crash/data/other, status: open/in_progress/fixed/verified/closed/reopened/deferred/rejected/duplicate, resolution: fixed/wont_fix/duplicate/cannot_reproduce/by_design/deferred, steps_to_reproduce, expected_result, actual_result, external_url, assignee_id FK→user, test_result_id/test_run_id/test_case_id for traceability, environment_id, cycle_id, workspace_cycle_id); unique partial index on `(project_id, defect_number)` where not deleted; query helpers in `lib/queries/defects.ts`
+
+**Comments (project-scoped):**
+- `comment` — polymorphic comments (entity_type: "test_case" | "test_result" | "defect", entity_id, project_id, parent_id for threading, body, edited_at, resolved_at/resolved_by); indexed on `(entity_type, entity_id)`
+- `comment_reaction` — emoji reactions (comment_id, user_id, emoji); unique per user+comment+emoji
 
 **Cross-cutting:**
 - `attachment` — polymorphic file references (entity_type + entity_id), stores Vercel Blob URLs
@@ -342,9 +377,133 @@ Application tables use snake_case column names and are organized into three doma
 - Shared `CreateTeamDialog` (`components/create-team-dialog.tsx`) — reused in sidebar and teams page for team creation with slug auto-generation and availability checking
 - Workspace context (`lib/workspace-context.tsx`) — provides `workspace`, `teams`, `userRole`, `isAdmin` to all workspace-scoped pages
 - Team settings context (`lib/team-settings-context.tsx`) — provides team info to team settings pages
-- Reusable `DataTable` component (`components/data-table.tsx`) wrapping TanStack React Table with shadcn Table primitives
+- Shared `GroupedList<T>` component (`components/grouped-list.tsx`) — **preferred list component** for all list views. Renders items in collapsible status groups with chevron toggles, colored status dots, group labels with counts, and empty states. Exports `GroupedList<T>`, `ListGroup<T>` interface, `groupedListRowClass` (consistent row styling with hover-reveal `...` dropdown via `group`/`group-hover:opacity-100`), and `formatRelativeDate()`. Used by: defects, test runs (list + detail results), environments, cycles, test plans, API tokens (workspace + team). **Prefer `GroupedList` over `DataTable` for new list views.**
+- `DataTable` component (`components/data-table.tsx`) wrapping TanStack React Table with shadcn Table primitives — legacy, prefer `GroupedList` for new list views
+- Shared `PageBreadcrumb` component (`components/page-breadcrumb.tsx`) — renders a breadcrumb bar with chevron separators; accepts `items` array (label + optional href/onClick) and `children` for right-side action buttons (menus, toggles, navigation). Used as the top bar on all list and detail pages
+- Shared `LogViewer` component (`components/log-viewer.tsx`) — renders log output with ANSI color support (via `anser` library), collapsible step groups, line numbers, and full-text search; theme-aware with dual light/dark ANSI color palettes
+- Shared `TestCasePropertiesSidebar` component (`components/test-case-properties-sidebar.tsx`) — right sidebar with dropdown selectors for test case properties (status, priority, severity, type, automation status, behavior, layer, flaky toggle, assignee)
+- Shared `CommentSection` component (`components/comments/comment-section.tsx`) — threaded comments with replies, editing, resolving, emoji reactions, and @mentions; polymorphic via entityType + entityId
 - Shared auth UI components (`components/auth-ui.tsx`): `AuthInput`, `AuthLabel`, `PasswordInput`
-- Team settings components (`components/team-settings/`) — `team-info-form.tsx`, `team-tokens-list.tsx` with Card-based layouts matching workspace settings style
+- Shared `TestCaseTreePicker` component (`components/test-case-tree-picker.tsx`) — reusable tree picker with checkboxes for selecting test cases; manages own expand/collapse and search state; used by test plan dialogs and create test run dialog
+- Team settings components (`components/team-settings/`) — `team-info-form.tsx`, `team-tokens-list.tsx`, `test-plans-list.tsx`, `cycles-list.tsx` using `PageBreadcrumb` + `GroupedList` layout
+
+**GroupedList pattern:** All list views (defects, test runs, environments, cycles, test plans, tokens) use a consistent layout: `PageBreadcrumb` header with "New" button → `GroupedList` body with items grouped by status. Each row uses `groupedListRowClass` and includes a hover-reveal `...` `DropdownMenu` (using `group` + `group-hover:opacity-100`), a colored status dot, the item name, and right-aligned metadata. For SWR-loaded data, show a `RefreshCw` spinner before the list renders. The test run detail page also uses `GroupedList` for its results tab (grouped by result status), combined with a collapsible properties sidebar.
+
+**Breadcrumb pattern:** All list and detail pages use `PageBreadcrumb`. Detail pages (test case, test run, test result, defect) add a `...` dropdown menu for actions (Delete, Reset to Untested) and a PanelRight toggle for the properties sidebar. Action menus are permission-guarded (e.g., delete only for owner/admin roles).
+
+**Date formatting:** Locale-dependent dates (e.g., `toLocaleString()`) must be rendered client-side only to avoid hydration mismatches. Use `useState("—")` + `useEffect` to format after mount — never call `toLocaleString()` in the initial render of a server-rendered component.
+
+### Test Repository
+
+The test repo page (`/{workspace}/{team}/test-repo`) is a split-pane view: tree sidebar (left) + detail pane (right), managed by Zustand (`lib/stores/test-repo-store.ts`).
+
+**Tree sidebar** (`test-repo-tree.tsx`): uses `react-arborist` for virtualized rendering with drag-and-drop reorder. Supports suites, sections (nested), and test cases. Inline folder creation/rename. Selection updates `selectedNode` in Zustand store.
+
+**Test case creation — instant draft pattern:**
+- Clicking "New Test Case" in the tree immediately POSTs to `/api/test-cases` with title `"Untitled"` and default properties — no separate create form
+- `test-repo-content.tsx` manages creation via two effects: one fires the API call when `creatingTestCase` is set, another watches `testCases` for the new ID to appear after `router.refresh()` and auto-selects it
+- The user lands directly in the edit view (`test-repo-detail-case.tsx`) where all fields auto-save on blur
+- There is no dedicated create form component — creation and editing use the same detail view
+
+**Test case editing — auto-save on blur:**
+- `test-repo-detail-case.tsx` saves individual fields via `PATCH /api/test-cases/{id}` on blur (dirty-checked against `savedRef`)
+- Properties sidebar (`components/test-case-properties-sidebar.tsx`) changes save immediately on value change — dropdown selectors for status, priority, severity, type, automation status, behavior, layer, flaky toggle, and assignee
+- Test steps auto-save on blur: new steps POST on blur, existing steps PUT on blur
+- Save state indicator: "Saving..." → "Saved" (2s) in the breadcrumb bar
+- Component uses `key={testCase.id}` to remount cleanly when switching between test cases
+- Comments section (`components/comments/comment-section.tsx`) at the bottom of test case detail — threaded comments with replies, editing, resolving, and emoji reactions
+
+**State management (`test-repo-store.ts`):**
+- `selectedNode` — currently displayed suite/section/test case
+- `creatingTestCase` — parent context when creating (cleared after API call)
+- `treePanelWidth` — resizable panel width (persisted to localStorage)
+- `openNodes` — tree expand/collapse state per project (persisted to localStorage)
+
+### Test Runs
+
+The test runs feature provides test execution management at `/{workspace}/{team}/test-runs`.
+
+**Pages:**
+- `test-runs/page.tsx` → `test-runs-content.tsx` — list of test runs with `PageBreadcrumb` + `GroupedList` (grouped by run status), create dialog, environment/cycle selectors
+- `test-runs/[runId]/page.tsx` → `test-run-detail-content.tsx` — run detail with `GroupedList` results (grouped by result status), pie chart metrics, properties sidebar, and logs tab
+- `test-runs/[runId]/results/[resultId]/page.tsx` → `test-result-execution-content.tsx` — individual result execution with step-by-step status, overall verdict, comment, duration, and logs tab
+
+**Supporting files:**
+- `test-run-columns.tsx` — `TestRunRow` type definition (used by runs list `GroupedList`)
+- `test-result-columns.tsx` — `TestResultRow` type definition (used by run detail `GroupedList`)
+- `progress-bar.tsx` — shared status color/label helpers (`getStatusColor`, `getStatusLabel`, `getStatusTextColor`) and `StackedProgressBar` component
+- `create-test-run-dialog.tsx` — dialog for creating new test runs; "Load from plan..." dropdown pre-populates tree from test plan, user can modify selection; properties sidebar for environment/cycle; uses shared `TestCaseTreePicker` component
+
+**Test run detail (`test-run-detail-content.tsx`):**
+- Breadcrumb bar with status action buttons (Start Run / Complete + Abort), `...` dropdown menu with Delete, and properties sidebar toggle
+- Results/Logs tabs — Results tab uses `GroupedList` with results grouped by status (failed, blocked, untested, passed, skipped); each row has hover `...` menu for quick status change, case key, status dot, title, comment tooltip, duration, assignee avatar; rows are clickable links to result execution page. Logs tab lazy-loads run-level log chunks
+- Properties sidebar: pie chart with status breakdown, environment, cycle, created by, created date
+- Delete confirmation via AlertDialog; navigates back to runs list after deletion
+- Status transitions: pending → in_progress → passed/failed/blocked (auto-computed based on result metrics)
+
+**Test result execution (`test-result-execution-content.tsx`):**
+- Breadcrumb bar with save indicator, "X of Y" counter, prev/next navigation (keyboard shortcuts J/K), `...` dropdown with "Reset to Untested", and properties sidebar toggle
+- Execution/Logs tabs — Execution shows step-by-step status selectors, overall verdict buttons (keyboard shortcuts 1-4), comment, and duration; Logs tab lazy-loads result-level log chunks
+- Properties sidebar: overall status, executed by (avatar), executed at, duration inputs
+- Auto-save on blur for all fields; dirty-checking against `savedRef`
+- Keyboard shortcuts: 1=Passed, 2=Failed, 3=Blocked, 4=Skipped, J=Next, K=Previous
+
+**Query helpers (`lib/queries/test-runs.ts`):**
+- `getProjectTestRuns(projectId)` — list runs with computed result metrics
+- `getTestRun(runId)` — single run with environment, cycle, and creator info
+- `getTestRunResults(runId)` — results joined with test case/section info
+- `getRunMetrics(runId)` — aggregated counts (passed, failed, blocked, skipped, untested, total, passRate)
+- `computeRunStatus(runId)` — suggest run status based on result distribution
+- `getTestResult(resultId)` — single result with case info
+- `getTestRunResultIds(runId)` — ordered IDs for prev/next navigation
+- `getTestResultSteps(resultId)` — steps with existing step results
+
+**Log infrastructure:**
+- `test_run_log` DB table with dual scoping: run-level (testResultId = NULL) or result-level (testResultId set)
+- Query helpers (`lib/queries/test-run-logs.ts`): `getRunLogs()`, `getResultLogs()`, `hasRunLogs()`, `hasResultLogs()`, `getNextChunkMeta()`
+- API: `POST /api/test-runs/[id]/logs` and `POST /api/test-results/[id]/logs` to append chunks; GET to fetch
+- `LogViewer` component (`components/log-viewer.tsx`): ANSI escape code rendering via `anser`, collapsible step groups, line numbers, full-text search with highlighting, theme-aware styling (light + dark mode ANSI colors)
+
+### Defects
+
+Defect/bug tracking at `/{workspace}/{team}/defects`, following the same list-view → detail-view flow as Test Runs.
+
+**Pages:**
+- `defects/page.tsx` → `defects-content.tsx` — list of defects with `PageBreadcrumb` + `GroupedList` (grouped by defect status: open, in_progress, reopened, fixed, verified, closed, deferred, rejected, duplicate), create dialog
+- `defects/[defectId]/page.tsx` → `defect-detail-content.tsx` — defect detail with editable fields, properties sidebar, comments, status transitions
+
+**Supporting files:**
+- `defect-columns.tsx` — `DefectRow` type definition (used by defects list `GroupedList`)
+- `defect-status-helpers.ts` — status/severity/priority color and label helpers
+- `create-defect-dialog.tsx` — split-pane dialog (content left, properties right); accepts optional `prefill` prop for pre-populating from test result context
+
+**Defect detail (`defect-detail-content.tsx`):**
+- Breadcrumb bar with status transition actions (Start Working, Mark Fixed, Verify, Close, Reopen) and `...` dropdown (Mark Duplicate, Reject, Defer, Delete)
+- Left content: editable title, description, reproduction fields (steps/expected/actual), traceability links (test case, test run, external URL), comments
+- Properties sidebar: status badge, defect ID, severity/priority/type/resolution selects, environment/cycle selects, created by, created date
+- Auto-save on blur with dirty checking via savedRef; save state indicator (Saving.../Saved)
+
+**"Fail + Create Defect" integration:**
+- Test result execution page (`test-result-execution-content.tsx`) has a split button on the "Failed" status — clicking the main area marks as failed, clicking the dropdown arrow shows "Fail + Create Defect" which marks as failed AND opens CreateDefectDialog pre-populated with test result/run/case info
+
+**Query helpers (`lib/queries/defects.ts`):**
+- `getProjectDefects(projectId)` — list defects with assignee, environment, test case joins
+- `getDefect(defectId)` — single defect with full joins
+- `getDefectsForTestResult(testResultId)` — defects linked to a specific test result
+
+### Comments
+
+Threaded comments with reactions, used on test cases, test results, and defects.
+
+**Component:** `components/comments/comment-section.tsx` — polymorphic via `entityType` ("test_case" | "test_result" | "defect") + `entityId`
+
+**Features:**
+- Threaded replies (parent_id), inline editing, delete, resolve/unresolve
+- Emoji reactions (toggle per user per emoji)
+- @mentions with user search via `/api/comments/mentions`
+- Uses SWR for data fetching with optimistic updates
+
+**API:** `/api/comments` (GET list + POST create), `/api/comments/[id]` (PATCH edit + DELETE), `/api/comments/[id]/resolve` (POST toggle), `/api/comments/[id]/reactions` (POST toggle emoji)
 
 ### Registration control
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import {
   useTestRepoStore,
   useTestRepoReady,
@@ -10,7 +11,6 @@ import type { TreeNode } from "@/lib/tree-utils";
 import { TestRepoTree } from "./test-repo-tree";
 import { TestRepoDetail } from "./test-repo-detail";
 import { TestRepoEmpty } from "./test-repo-empty";
-import { TestRepoCreateCase } from "./test-repo-create-case";
 import { cn } from "@/lib/utils";
 
 interface Suite {
@@ -77,12 +77,16 @@ export function TestRepoContent({
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
   const selectNode = useTestRepoStore((s) => s.selectNode);
   const creatingTestCase = useTestRepoStore((s) => s.creatingTestCase);
+  const setCreatingTestCase = useTestRepoStore((s) => s.setCreatingTestCase);
   const ready = useTestRepoReady();
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const initializedRef = useRef(false);
+
+  // Track a just-created test case that is waiting for server data refresh
+  const [pendingTestCaseId, setPendingTestCaseId] = useState<string | null>(null);
 
   // On mount: resolve initial selection from URL search params
   useEffect(() => {
@@ -111,6 +115,54 @@ export function TestRepoContent({
       }
     }
   }, [initialCaseKey, initialSuiteId, initialSectionId, testCases, suites, sections, selectNode]);
+
+  // Auto-create test case immediately when entering create mode
+  useEffect(() => {
+    if (!creatingTestCase) return;
+
+    let cancelled = false;
+    const { parentId, parentType } = creatingTestCase;
+
+    (async () => {
+      try {
+        const sectionId = parentType === "section" ? parentId : null;
+
+        const res = await fetch("/api/test-cases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Untitled",
+            sectionId,
+            projectId,
+          }),
+        });
+
+        if (!res.ok || cancelled) return;
+        const created = await res.json();
+
+        setPendingTestCaseId(created.id);
+        setCreatingTestCase(null);
+        router.refresh();
+      } catch {
+        if (!cancelled) setCreatingTestCase(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [creatingTestCase, projectId, setCreatingTestCase, router]);
+
+  // Once the newly created test case appears in server data, select it
+  useEffect(() => {
+    if (!pendingTestCaseId) return;
+
+    const tc = testCases.find((t) => t.id === pendingTestCaseId);
+    if (tc) {
+      selectNode({ id: tc.id, type: "testCase" });
+      setPendingTestCaseId(null);
+    }
+  }, [pendingTestCaseId, testCases, selectNode]);
 
   // Sync selection → URL
   useEffect(() => {
@@ -179,6 +231,7 @@ export function TestRepoContent({
   );
 
   const hasData = treeData.length > 0;
+  const isCreating = !!creatingTestCase || !!pendingTestCaseId;
 
   return (
     <div
@@ -205,14 +258,10 @@ export function TestRepoContent({
 
       {/* Detail pane */}
       <div className="min-w-0 flex-1 overflow-y-auto bg-background">
-        {creatingTestCase ? (
-          <TestRepoCreateCase
-            projectId={projectId}
-            parentId={creatingTestCase.parentId}
-            parentType={creatingTestCase.parentType}
-            suites={suites}
-            sections={sections}
-          />
+        {isCreating ? (
+          <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
         ) : selectedNode && hasData ? (
           <TestRepoDetail
             projectId={projectId}

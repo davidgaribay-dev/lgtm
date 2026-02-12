@@ -55,6 +55,7 @@ export async function getTestCases(projectId: string) {
       assigneeId: testCase.assigneeId,
       templateType: testCase.templateType,
       sectionId: testCase.sectionId,
+      suiteId: testCase.suiteId,
       caseKey: testCase.caseKey,
       displayOrder: testCase.displayOrder,
     })

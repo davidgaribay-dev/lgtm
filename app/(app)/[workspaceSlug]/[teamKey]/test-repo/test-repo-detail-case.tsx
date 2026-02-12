@@ -3,18 +3,37 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ChevronRight,
   Loader2,
   Check,
   PanelRight,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TestStepsEditor, type TestStep } from "@/components/test-steps-editor";
 import { CommentSection } from "@/components/comments/comment-section";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { authClient } from "@/lib/auth-client";
 import { useWorkspace } from "@/lib/workspace-context";
+import { useTestRepoStore } from "@/lib/stores/test-repo-store";
 import {
   TestCasePropertiesSidebar,
   type TeamMember,
@@ -59,10 +78,29 @@ function TestRepoDetailCaseInner({
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const { userRole } = useWorkspace();
+  const selectNode = useTestRepoStore((s) => s.selectNode);
 
   const currentUserId = session?.user?.id ?? "";
   const canWrite = userRole !== "viewer";
   const canDeleteAny = userRole === "owner" || userRole === "admin";
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  async function handleDelete() {
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(
+        `/api/test-cases/${testCase.id}?projectId=${projectId}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error("Failed to delete");
+      selectNode(null);
+      router.refresh();
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
 
   // Local state for editable fields
   const [title, setTitle] = useState(testCase.title);
@@ -267,25 +305,34 @@ function TestRepoDetailCaseInner({
     <div className="flex h-full">
       {/* Left side: breadcrumb + main content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Breadcrumb bar */}
-        <div className="flex shrink-0 items-center justify-between border-b bg-card px-4 py-2">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            {suite && (
-              <>
-                <span>{suite.name}</span>
-                <ChevronRight className="h-3 w-3" />
-              </>
-            )}
-            {section && (
-              <>
-                <span>{section.name}</span>
-                <ChevronRight className="h-3 w-3" />
-              </>
-            )}
-            {testCase.caseKey && (
-              <span className="font-medium text-foreground">{testCase.caseKey}</span>
-            )}
-          </div>
+        <PageBreadcrumb
+          items={[
+            ...(suite ? [{ label: suite.name }] : []),
+            ...(section ? [{ label: section.name }] : []),
+            ...(testCase.caseKey ? [{ label: testCase.caseKey }] : []),
+          ]}
+        >
+          {canDeleteAny && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="mx-0.5 h-4 w-px bg-border" />
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -295,7 +342,7 @@ function TestRepoDetailCaseInner({
           >
             <PanelRight className="h-4 w-4" />
           </Button>
-        </div>
+        </PageBreadcrumb>
 
         {/* Scrollable main content */}
         <div className="flex-1 overflow-y-auto">
@@ -403,6 +450,29 @@ function TestRepoDetailCaseInner({
           members={members}
         />
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete test case?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{testCase.caseKey ?? testCase.title}&quot;.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLoading ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

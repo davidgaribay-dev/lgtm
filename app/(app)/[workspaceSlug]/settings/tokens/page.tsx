@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { organization, project, member } from "@/db/schema";
-import { PageContainer } from "@/components/page-container";
 import { TokensList } from "@/components/settings/tokens-list";
 
 export const metadata: Metadata = {
@@ -66,12 +65,10 @@ export default async function TokensPage({
     .orderBy(project.displayOrder);
 
   return (
-    <PageContainer>
-      <TokensList
-        organizationId={org.id}
-        teams={teams}
-        isAdmin={isAdmin || false}
-      />
-    </PageContainer>
+    <TokensList
+      organizationId={org.id}
+      teams={teams}
+      isAdmin={isAdmin || false}
+    />
   );
 }

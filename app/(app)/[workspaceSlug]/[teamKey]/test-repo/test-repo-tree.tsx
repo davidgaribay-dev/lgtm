@@ -14,6 +14,7 @@ import {
   type NodeApi,
   type TreeApi,
 } from "react-arborist";
+import { useDragDropManager } from "react-dnd";
 import {
   ChevronRight,
   Folder,
@@ -26,7 +27,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTestRepoStore } from "@/lib/stores/test-repo-store";
-import type { TreeNode } from "@/lib/tree-utils";
+import { moveNodeInTree, type TreeNode } from "@/lib/tree-utils";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -90,6 +91,7 @@ function injectTempNode(
 }
 
 export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
+  const dndManager = useDragDropManager();
   const selectNode = useTestRepoStore((s) => s.selectNode);
   const selectedNode = useTestRepoStore((s) => s.selectedNode);
   const setCreatingTestCase = useTestRepoStore((s) => s.setCreatingTestCase);
@@ -108,6 +110,14 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
   const [dimensions, setDimensions] = useState({ width: 280, height: 600 });
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
 
+  // Local tree state for optimistic drag-and-drop updates.
+  const [localTree, setLocalTree] = useState<TreeNode[]>(data);
+
+  // Sync local state when server data changes (after router.refresh()).
+  useEffect(() => {
+    setLocalTree(data);
+  }, [data]);
+
   // Inline folder creation state
   const [creatingFolder, setCreatingFolder] = useState<{
     parentId: string | null;
@@ -119,9 +129,9 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
 
   // Derive tree data with temp node when creating
   const treeData = useMemo(() => {
-    if (!creatingFolder) return data;
-    return injectTempNode(data, creatingFolder);
-  }, [data, creatingFolder]);
+    if (!creatingFolder) return localTree;
+    return injectTempNode(localTree, creatingFolder);
+  }, [localTree, creatingFolder]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -199,9 +209,9 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
     [],
   );
 
-  // Drag-and-drop: move handler
+  // Drag-and-drop: move handler (optimistic — updates UI instantly)
   const handleMove = useCallback(
-    async ({
+    ({
       dragNodes,
       parentId,
       parentNode,
@@ -216,10 +226,20 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       const dragNode = dragNodes[0];
       if (!dragNode || dragNode.id === CREATING_NODE_ID) return;
 
+      // Optimistic update: move node in local tree state immediately
+      setLocalTree((prev) => moveNodeInTree(prev, dragNode.id, parentId, index));
+
+      // Auto-expand the target folder so the user sees the dropped item
+      if (parentId && parentNode && !parentNode.isOpen) {
+        parentNode.open();
+        setNodeOpen(projectId, parentId, true);
+      }
+
+      // Build the reorder API payload
       const dragType = dragNode.data.type;
 
       const siblings = parentNode?.isRoot
-        ? data
+        ? localTree
         : (parentNode?.children?.map((c) => c.data) ?? []);
 
       const siblingIds = siblings
@@ -264,12 +284,14 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
       } else if (dragType === "testCase") {
         const pType = parentNode?.data?.type;
         const newSectionId = pType === "section" ? parentId : null;
+        const newSuiteId = pType === "suite" ? parentId : null;
 
         items.push({
           id: dragNode.id,
           type: "testCase",
           displayOrder: index,
           sectionId: newSectionId,
+          suiteId: newSuiteId,
         });
 
         siblingIds.forEach((id, i) => {
@@ -282,16 +304,22 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
         });
       }
 
+      // Fire API call in background, then sync canonical server data
       if (items.length > 0) {
-        await fetch("/api/test-repo/reorder", {
+        fetch("/api/test-repo/reorder", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ projectId, items }),
-        });
-        router.refresh();
+        })
+          .then(() => {
+            router.refresh();
+          })
+          .catch(() => {
+            router.refresh();
+          });
       }
     },
-    [data, projectId, router],
+    [localTree, projectId, router, setNodeOpen],
   );
 
   // Clone handler
@@ -446,6 +474,7 @@ export function TestRepoTree({ data, projectId }: TestRepoTreeProps) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ref={treeRef as any}
             data={treeData}
+            dndManager={dndManager}
             width={dimensions.width}
             height={dimensions.height}
             rowHeight={32}

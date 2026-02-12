@@ -1,28 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Key, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTeamSettings } from "@/lib/team-settings-context";
 import { CreateTokenDialog } from "@/components/settings/create-token-dialog";
 import { ShowTokenDialog } from "@/components/settings/show-token-dialog";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+  GroupedList,
+  groupedListRowClass,
+  formatRelativeDate,
+  type ListGroup,
+} from "@/components/grouped-list";
 
 interface Token {
   id: string;
@@ -51,6 +49,57 @@ interface NewToken {
   expiresAt: string | null;
 }
 
+function getTokenEffectiveStatus(token: Token): string {
+  if (token.scopeStatus === "pending") return "pending";
+  if (token.scopeStatus === "rejected") return "rejected";
+  if (token.status === "revoked") return "revoked";
+  if (token.expiresAt && new Date(token.expiresAt) < new Date())
+    return "expired";
+  return "active";
+}
+
+function getTokenStatusDotColor(status: string) {
+  switch (status) {
+    case "active":
+      return "border-emerald-500 bg-emerald-500/20";
+    case "pending":
+      return "border-amber-500 bg-amber-500/20";
+    case "revoked":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    case "expired":
+      return "border-red-500 bg-red-500/20";
+    case "rejected":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    default:
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+  }
+}
+
+function getTokenStatusLabel(status: string) {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "pending":
+      return "Pending Approval";
+    case "revoked":
+      return "Revoked";
+    case "expired":
+      return "Expired";
+    case "rejected":
+      return "Rejected";
+    default:
+      return status;
+  }
+}
+
+const TOKEN_STATUS_ORDER = [
+  "active",
+  "pending",
+  "revoked",
+  "expired",
+  "rejected",
+] as const;
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function TeamTokensList() {
@@ -64,10 +113,30 @@ export function TeamTokensList() {
   );
 
   // Filter tokens to only show ones scoped to this team
-  const teamTokens = tokens?.filter(
-    (token) =>
-      token.projectScopes.includes(team.id) || token.scopeType === "organization"
-  ) || [];
+  const teamTokens = useMemo(() => {
+    if (!tokens) return undefined;
+    return tokens.filter(
+      (token) =>
+        token.projectScopes.includes(team.id) || token.scopeType === "organization",
+    );
+  }, [tokens, team.id]);
+
+  const groups = useMemo((): ListGroup<Token>[] => {
+    if (!teamTokens) return [];
+    const map = new Map<string, Token[]>();
+    for (const t of teamTokens) {
+      const effectiveStatus = getTokenEffectiveStatus(t);
+      const list = map.get(effectiveStatus) ?? [];
+      list.push(t);
+      map.set(effectiveStatus, list);
+    }
+    return TOKEN_STATUS_ORDER.filter((s) => map.has(s)).map((s) => ({
+      key: s,
+      label: getTokenStatusLabel(s),
+      dotColor: getTokenStatusDotColor(s),
+      items: map.get(s)!,
+    }));
+  }, [teamTokens]);
 
   const handleRevoke = async (tokenId: string) => {
     if (
@@ -95,90 +164,84 @@ export function TeamTokensList() {
     setNewToken(token);
   };
 
-  const formatDate = (date: string | null) => {
-    if (!date) return "Never";
-    return new Date(date).toLocaleDateString();
-  };
-
-  const isExpired = (expiresAt: string | null) => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
-  };
-
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Team API Tokens</h1>
-          <p className="text-muted-foreground">
-            Create and manage API tokens for programmatic access to {team.name}.
-          </p>
-        </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
-          <Plus className="h-4 w-4" />
-          Create Token
+    <div className="flex min-h-svh flex-col bg-background">
+      <PageBreadcrumb items={[{ label: "API Tokens" }]}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowCreateDialog(true)}
+          className="h-7 gap-1.5 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New
         </Button>
-      </div>
+      </PageBreadcrumb>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active tokens</CardTitle>
-          <CardDescription>
-            {teamTokens.length} {teamTokens.length === 1 ? "token" : "tokens"}{" "}
-            accessible to this team.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Token</TableHead>
-                <TableHead>Scope</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Used</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {!tokens && (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              )}
-              {tokens && teamTokens.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No API tokens for this team yet. Create one to get started.
-                  </TableCell>
-                </TableRow>
-              )}
-              {teamTokens.map((token) => (
-                <TableRow key={token.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{token.name}</div>
-                      {token.description && (
-                        <div className="text-sm text-muted-foreground">
-                          {token.description}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs">...{token.tokenPrefix}</code>
-                  </TableCell>
-                  <TableCell>
+      <div className="flex-1">
+        {!teamTokens ? (
+          <div className="flex items-center justify-center py-24">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <GroupedList
+            groups={groups}
+            getItemId={(t) => t.id}
+            emptyIcon={
+              <Key className="h-10 w-10 text-muted-foreground/40" />
+            }
+            emptyTitle="No API tokens"
+            emptyDescription="Create a token to enable programmatic API access for this team."
+            emptyAction={
+              <Button
+                size="sm"
+                onClick={() => setShowCreateDialog(true)}
+              >
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create Token
+              </Button>
+            }
+            renderRow={(token) => {
+              const effectiveStatus = getTokenEffectiveStatus(token);
+              const canRevoke =
+                effectiveStatus === "active" || effectiveStatus === "pending";
+              return (
+                <div className={groupedListRowClass}>
+                  {canRevoke && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => handleRevoke(token.id)}
+                        >
+                          Revoke
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  {!canRevoke && <span className="w-5 shrink-0" />}
+
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getTokenStatusDotColor(effectiveStatus)}`}
+                  />
+
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {token.name}
+                  </span>
+
+                  <div className="flex shrink-0 items-center gap-3">
+                    <code className="text-xs text-muted-foreground">
+                      ...{token.tokenPrefix}
+                    </code>
+
                     <Badge
                       variant={
                         token.scopeType === "organization"
@@ -187,59 +250,30 @@ export function TeamTokensList() {
                             ? "secondary"
                             : "outline"
                       }
+                      className="text-[10px] leading-none"
                     >
                       {token.scopeType === "personal"
                         ? "Personal"
                         : token.scopeType === "team"
                           ? "Team"
-                          : "Organization"}
+                          : "Org"}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {token.scopeStatus === "pending" ? (
-                      <Badge variant="outline" className="border-orange-500 text-orange-500">
-                        Pending Approval
-                      </Badge>
-                    ) : token.scopeStatus === "rejected" ? (
-                      <Badge variant="destructive">Rejected</Badge>
-                    ) : isExpired(token.expiresAt) ? (
-                      <Badge variant="destructive">Expired</Badge>
-                    ) : token.status === "revoked" ? (
-                      <Badge variant="secondary">Revoked</Badge>
-                    ) : (
-                      <Badge variant="default">Active</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(token.lastUsedAt)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {token.expiresAt ? formatDate(token.expiresAt) : "Never"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-xs">
-                      {token.permissions.length} permission
+
+                    <span className="text-xs text-muted-foreground">
+                      {token.permissions.length} perm
                       {token.permissions.length !== 1 ? "s" : ""}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRevoke(token.id)}
-                      disabled={
-                        token.status === "revoked" || isExpired(token.expiresAt)
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </span>
+
+                    <span className="w-12 text-right text-[11px] text-muted-foreground">
+                      {formatRelativeDate(token.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              );
+            }}
+          />
+        )}
+      </div>
 
       <CreateTokenDialog
         open={showCreateDialog}

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { PageContainer } from "@/components/page-container";
 import { TeamTokensList } from "@/components/team-settings/team-tokens-list";
 
 export const metadata: Metadata = {
@@ -7,9 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default async function TeamTokensPage() {
-  return (
-    <PageContainer>
-      <TeamTokensList />
-    </PageContainer>
-  );
+  return <TeamTokensList />;
 }

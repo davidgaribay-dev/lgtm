@@ -2,8 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
-import { useDrag, useDrop, DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useDrag, useDrop } from "react-dnd";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -149,7 +148,7 @@ export function TestStepsEditor({
   );
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label className="text-sm text-muted-foreground">Test Steps</Label>
@@ -200,7 +199,7 @@ export function TestStepsEditor({
           </div>
         )}
       </div>
-    </DndProvider>
+    </>
   );
 }
 

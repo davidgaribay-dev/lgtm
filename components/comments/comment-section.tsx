@@ -17,7 +17,7 @@ interface CommentsResponse {
 }
 
 interface CommentSectionProps {
-  entityType: "test_case" | "test_result";
+  entityType: "test_case" | "test_result" | "defect";
   entityId: string;
   projectId: string;
   currentUserId: string;

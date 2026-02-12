@@ -2,16 +2,10 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2, Plus } from "lucide-react";
+import { Calendar, Loader2, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useTeamSettings } from "@/lib/team-settings-context";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,8 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DataTable } from "@/components/data-table";
-import { type CycleRow, getCycleColumns } from "./cycle-columns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import {
+  GroupedList,
+  groupedListRowClass,
+  type ListGroup,
+} from "@/components/grouped-list";
+import type { CycleRow } from "./cycle-columns";
 
 const cycleStatuses = [
   { value: "planned", label: "Planned" },
@@ -39,17 +44,53 @@ const cycleStatuses = [
   { value: "completed", label: "Completed" },
 ] as const;
 
+function getCycleStatusDotColor(status: string) {
+  switch (status) {
+    case "active":
+      return "border-emerald-500 bg-emerald-500/20";
+    case "planned":
+      return "border-blue-500 bg-blue-500/20";
+    case "completed":
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+    default:
+      return "border-muted-foreground/40 bg-muted-foreground/10";
+  }
+}
+
+function getCycleStatusLabel(status: string) {
+  switch (status) {
+    case "active":
+      return "Active";
+    case "planned":
+      return "Planned";
+    case "completed":
+      return "Completed";
+    default:
+      return status;
+  }
+}
+
+const CYCLE_STATUS_ORDER = ["active", "planned", "completed"] as const;
+
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function formatTimeline(startDate: string | null, endDate: string | null) {
+  if (!startDate && !endDate) return null;
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  return `${startDate ? fmt(startDate) : "?"} → ${endDate ? fmt(endDate) : "?"}`;
+}
 
 export function CyclesList() {
   const { team } = useTeamSettings();
 
-  // Dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CycleRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CycleRow | null>(null);
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
@@ -57,7 +98,6 @@ export function CyclesList() {
   const [formStatus, setFormStatus] = useState("planned");
   const [formIsCurrent, setFormIsCurrent] = useState(false);
 
-  // Async state
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,34 +106,21 @@ export function CyclesList() {
     fetcher,
   );
 
-  const columns = useMemo(
-    () =>
-      getCycleColumns({
-        onEdit: (cycleData) => {
-          setEditTarget(cycleData);
-          setFormName(cycleData.name);
-          setFormDescription(cycleData.description ?? "");
-          setFormStartDate(
-            cycleData.startDate
-              ? new Date(cycleData.startDate).toISOString().split("T")[0]
-              : ""
-          );
-          setFormEndDate(
-            cycleData.endDate
-              ? new Date(cycleData.endDate).toISOString().split("T")[0]
-              : ""
-          );
-          setFormStatus(cycleData.status);
-          setFormIsCurrent(cycleData.isCurrent);
-          setError("");
-        },
-        onDelete: (cycleData) => {
-          setDeleteTarget(cycleData);
-          setError("");
-        },
-      }),
-    [],
-  );
+  const groups = useMemo((): ListGroup<CycleRow>[] => {
+    if (!cycles) return [];
+    const map = new Map<string, CycleRow[]>();
+    for (const c of cycles) {
+      const list = map.get(c.status) ?? [];
+      list.push(c);
+      map.set(c.status, list);
+    }
+    return CYCLE_STATUS_ORDER.filter((s) => map.has(s)).map((s) => ({
+      key: s,
+      label: getCycleStatusLabel(s),
+      dotColor: getCycleStatusDotColor(s),
+      items: map.get(s)!,
+    }));
+  }, [cycles]);
 
   function resetForm() {
     setFormName("");
@@ -110,17 +137,33 @@ export function CyclesList() {
     setCreateOpen(true);
   }
 
+  function handleOpenEdit(cycleData: CycleRow) {
+    setEditTarget(cycleData);
+    setFormName(cycleData.name);
+    setFormDescription(cycleData.description ?? "");
+    setFormStartDate(
+      cycleData.startDate
+        ? new Date(cycleData.startDate).toISOString().split("T")[0]
+        : "",
+    );
+    setFormEndDate(
+      cycleData.endDate
+        ? new Date(cycleData.endDate).toISOString().split("T")[0]
+        : "",
+    );
+    setFormStatus(cycleData.status);
+    setFormIsCurrent(cycleData.isCurrent);
+    setError("");
+  }
+
   async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-
     if (!formName.trim()) {
       setError("Name is required");
       return;
     }
-
     setIsPending(true);
-
     try {
       const res = await fetch("/api/cycles", {
         method: "POST",
@@ -135,14 +178,12 @@ export function CyclesList() {
           projectId: team.id,
         }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         setError(data.message || "Failed to create cycle");
         setIsPending(false);
         return;
       }
-
       setIsPending(false);
       setCreateOpen(false);
       resetForm();
@@ -157,14 +198,11 @@ export function CyclesList() {
     e.preventDefault();
     if (!editTarget) return;
     setError("");
-
     if (!formName.trim()) {
       setError("Name is required");
       return;
     }
-
     setIsPending(true);
-
     try {
       const res = await fetch(`/api/cycles/${editTarget.id}`, {
         method: "PUT",
@@ -178,14 +216,12 @@ export function CyclesList() {
           isCurrent: formIsCurrent,
         }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         setError(data.message || "Failed to update cycle");
         setIsPending(false);
         return;
       }
-
       setIsPending(false);
       setEditTarget(null);
       resetForm();
@@ -200,19 +236,16 @@ export function CyclesList() {
     if (!deleteTarget) return;
     setIsPending(true);
     setError("");
-
     try {
       const res = await fetch(`/api/cycles/${deleteTarget.id}`, {
         method: "DELETE",
       });
-
       if (!res.ok) {
         const data = await res.json();
         setError(data.message || "Failed to delete cycle");
         setIsPending(false);
         return;
       }
-
       setIsPending(false);
       setDeleteTarget(null);
       mutate();
@@ -308,42 +341,96 @@ export function CyclesList() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cycles</h1>
-          <p className="text-muted-foreground">
-            Manage release cycles and sprints for {team.name}.
-          </p>
-        </div>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="h-4 w-4" />
-          Create cycle
+    <div className="flex min-h-svh flex-col bg-background">
+      <PageBreadcrumb items={[{ label: "Cycles" }]}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleOpenCreate}
+          className="h-7 gap-1.5 px-2 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New
         </Button>
-      </div>
+      </PageBreadcrumb>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Cycles</CardTitle>
-          <CardDescription>
-            {cycles?.length ?? 0}{" "}
-            {cycles?.length === 1 ? "cycle" : "cycles"} configured.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!cycles ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Loading...
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={cycles}
-              emptyMessage="No cycles configured yet."
-            />
-          )}
-        </CardContent>
-      </Card>
+      <div className="flex-1">
+        {!cycles ? (
+          <div className="flex items-center justify-center py-24">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <GroupedList
+            groups={groups}
+            getItemId={(c) => c.id}
+            emptyIcon={
+              <Calendar className="h-10 w-10 text-muted-foreground/40" />
+            }
+            emptyTitle="No cycles configured"
+            emptyDescription="Add your first cycle to organize test execution by sprint."
+            emptyAction={
+              <Button size="sm" onClick={handleOpenCreate}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+                Create Cycle
+              </Button>
+            }
+            renderRow={(cycle) => {
+              const timeline = formatTimeline(cycle.startDate, cycle.endDate);
+              return (
+                <div className={groupedListRowClass}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded opacity-0 hover:bg-muted group-hover:opacity-100"
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleOpenEdit(cycle)}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => {
+                          setDeleteTarget(cycle);
+                          setError("");
+                        }}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <span
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full border ${getCycleStatusDotColor(cycle.status)}`}
+                  />
+
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {cycle.name}
+                  </span>
+
+                  <div className="flex shrink-0 items-center gap-3">
+                    {cycle.isCurrent && (
+                      <Badge variant="default" className="text-[10px] leading-none">
+                        Current
+                      </Badge>
+                    )}
+
+                    {timeline && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        {timeline}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          />
+        )}
+      </div>
 
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

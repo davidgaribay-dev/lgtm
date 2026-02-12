@@ -16,8 +16,9 @@ import {
   ShieldCheck,
   BookOpen,
   ClipboardList,
+  Bug,
   Server,
-  LayoutDashboard,
+  ListChecks,
   Key,
   Calendar,
   MoreHorizontal,
@@ -27,8 +28,7 @@ import {
   Plus,
   GripVertical,
 } from "lucide-react";
-import { useDrag, useDrop, DndProvider, type ConnectDragSource } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
+import { useDrag, useDrop, type ConnectDragSource } from "react-dnd";
 import { authClient } from "@/lib/auth-client";
 import { useWorkspace, type Team } from "@/lib/workspace-context";
 import { useSidebarStore, useSidebarReady } from "@/lib/stores/sidebar-store";
@@ -68,7 +68,7 @@ const TEAM_DND_TYPE = "SIDEBAR_TEAM";
 const teamSubItems = [
   { segment: "test-repo", label: "Test Repo", icon: BookOpen },
   { segment: "test-runs", label: "Test Runs", icon: ClipboardList },
-  { segment: "views", label: "Views", icon: LayoutDashboard },
+  { segment: "defects", label: "Defects", icon: Bug },
 ];
 
 const settingsNavItems = [
@@ -105,6 +105,12 @@ const teamSettingsNavItems = [
     segment: "settings/environments",
     label: "Environments",
     icon: Server,
+    exact: false,
+  },
+  {
+    segment: "settings/test-plans",
+    label: "Test Plans",
+    icon: ListChecks,
     exact: false,
   },
   {
@@ -196,7 +202,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const basePath = `/${workspace.slug}`;
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <>
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-card",
@@ -366,7 +372,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           }}
         />
       </aside>
-    </DndProvider>
+    </>
   );
 }
 

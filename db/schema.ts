@@ -127,6 +127,8 @@ export const project = pgTable(
     status: text("status").notNull().default("active"),
     displayOrder: integer("display_order").notNull().default(0),
     nextTestCaseNumber: integer("next_test_case_number").notNull().default(1),
+    nextRunNumber: integer("next_run_number").notNull().default(1),
+    nextDefectNumber: integer("next_defect_number").notNull().default(1),
     ...auditFields,
   },
   (table) => [
@@ -209,6 +211,9 @@ export const testCase = pgTable(
     sectionId: text("section_id").references(() => section.id, {
       onDelete: "set null",
     }),
+    suiteId: text("suite_id").references(() => testSuite.id, {
+      onDelete: "set null",
+    }),
     projectId: text("project_id")
       .notNull()
       .references(() => project.id, { onDelete: "cascade" }),
@@ -226,6 +231,7 @@ export const testCase = pgTable(
   (table) => [
     index("test_case_project_id_idx").on(table.projectId),
     index("test_case_section_id_idx").on(table.sectionId),
+    index("test_case_suite_id_idx").on(table.suiteId),
     index("test_case_cycle_id_idx").on(table.cycleId),
     index("test_case_workspace_cycle_id_idx").on(table.workspaceCycleId),
     uniqueIndex("test_case_project_number_unique")
@@ -404,6 +410,31 @@ export const testPlan = pgTable(
   (table) => [index("test_plan_project_id_idx").on(table.projectId)],
 );
 
+export const testPlanCase = pgTable(
+  "test_plan_case",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    testPlanId: text("test_plan_id")
+      .notNull()
+      .references(() => testPlan.id, { onDelete: "cascade" }),
+    testCaseId: text("test_case_id")
+      .notNull()
+      .references(() => testCase.id, { onDelete: "cascade" }),
+    displayOrder: integer("display_order").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [
+    index("test_plan_case_plan_id_idx").on(table.testPlanId),
+    index("test_plan_case_case_id_idx").on(table.testCaseId),
+    uniqueIndex("test_plan_case_unique").on(
+      table.testPlanId,
+      table.testCaseId,
+    ),
+  ],
+);
+
 export const testRun = pgTable(
   "test_run",
   {
@@ -411,6 +442,7 @@ export const testRun = pgTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     name: text("name").notNull(),
+    runNumber: integer("run_number"),
     description: text("description"),
     projectId: text("project_id")
       .notNull()
@@ -458,6 +490,7 @@ export const testResult = pgTable(
       .notNull()
       .references(() => testCase.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("untested"),
+    source: text("source").notNull().default("manual"),
     executedBy: text("executed_by").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -507,6 +540,125 @@ export const testStepResult = pgTable(
       table.testResultId,
       table.testStepId,
     ),
+  ],
+);
+
+export const testRunLog = pgTable(
+  "test_run_log",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    testRunId: text("test_run_id")
+      .notNull()
+      .references(() => testRun.id, { onDelete: "cascade" }),
+    testResultId: text("test_result_id").references(() => testResult.id, {
+      onDelete: "cascade",
+    }),
+    stepName: text("step_name"),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    lineOffset: integer("line_offset").notNull(),
+    lineCount: integer("line_count").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("test_run_log_run_id_idx").on(table.testRunId),
+    index("test_run_log_result_id_idx").on(table.testResultId),
+    uniqueIndex("test_run_log_scope_chunk_idx").on(
+      table.testRunId,
+      table.testResultId,
+      table.chunkIndex,
+    ),
+  ],
+);
+
+// ============================================================
+// Application tables — Defect Tracking (project-scoped)
+// ============================================================
+
+export const defect = pgTable(
+  "defect",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    title: text("title").notNull(),
+    description: text("description"),
+
+    // Identity
+    defectNumber: integer("defect_number"),
+    defectKey: text("defect_key"), // e.g., "ENG-D-42"
+
+    // Classification
+    severity: text("severity").notNull().default("normal"),
+    priority: text("priority").notNull().default("medium"),
+    defectType: text("defect_type").notNull().default("functional"),
+
+    // Status & Resolution
+    status: text("status").notNull().default("open"),
+    resolution: text("resolution"),
+
+    // People
+    assigneeId: text("assignee_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+
+    // Reproduction
+    stepsToReproduce: text("steps_to_reproduce"),
+    expectedResult: text("expected_result"),
+    actualResult: text("actual_result"),
+
+    // Traceability
+    testResultId: text("test_result_id").references(() => testResult.id, {
+      onDelete: "set null",
+    }),
+    testRunId: text("test_run_id").references(() => testRun.id, {
+      onDelete: "set null",
+    }),
+    testCaseId: text("test_case_id").references(() => testCase.id, {
+      onDelete: "set null",
+    }),
+    externalUrl: text("external_url"),
+
+    // Project scope
+    projectId: text("project_id")
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+
+    // Environment
+    environmentId: text("environment_id").references(() => environment.id, {
+      onDelete: "set null",
+    }),
+
+    // Cycle tracking
+    cycleId: text("cycle_id").references(() => cycle.id, {
+      onDelete: "set null",
+    }),
+    workspaceCycleId: text("workspace_cycle_id").references(
+      () => workspaceCycle.id,
+      { onDelete: "set null" },
+    ),
+
+    ...auditFields,
+  },
+  (table) => [
+    index("defect_project_id_idx").on(table.projectId),
+    index("defect_status_idx").on(table.status),
+    index("defect_severity_idx").on(table.severity),
+    index("defect_assignee_id_idx").on(table.assigneeId),
+    index("defect_test_result_id_idx").on(table.testResultId),
+    index("defect_test_run_id_idx").on(table.testRunId),
+    index("defect_test_case_id_idx").on(table.testCaseId),
+    index("defect_environment_id_idx").on(table.environmentId),
+    index("defect_cycle_id_idx").on(table.cycleId),
+    index("defect_workspace_cycle_id_idx").on(table.workspaceCycleId),
+    uniqueIndex("defect_project_number_unique")
+      .on(table.projectId, table.defectNumber)
+      .where(sql`${table.deletedAt} is null`),
+    index("defect_defect_key_idx").on(table.defectKey),
   ],
 );
 

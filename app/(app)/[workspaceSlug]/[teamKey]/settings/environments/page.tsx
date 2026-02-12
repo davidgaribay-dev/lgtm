@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { getProjectEnvironments } from "@/lib/queries/environments";
-import { PageContainer } from "@/components/page-container";
 import { EnvironmentsContent } from "./environments-content";
 
 export const metadata: Metadata = {
@@ -27,12 +26,10 @@ export default async function EnvironmentsSettingsPage({
   const environments = await getProjectEnvironments(team.id);
 
   return (
-    <PageContainer>
-      <EnvironmentsContent
-        environments={environments}
-        team={{ id: team.id, name: team.name }}
-        isAdmin={true} // Team settings layout already checks admin permissions
-      />
-    </PageContainer>
+    <EnvironmentsContent
+      environments={environments}
+      team={{ id: team.id, name: team.name }}
+      isAdmin={true} // Team settings layout already checks admin permissions
+    />
   );
 }

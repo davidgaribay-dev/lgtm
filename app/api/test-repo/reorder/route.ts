@@ -146,6 +146,10 @@ export async function PUT(request: NextRequest) {
           updatedBy: userId,
         };
         if (item.sectionId !== undefined) tcUpdates.sectionId = item.sectionId;
+        if (item.suiteId !== undefined) tcUpdates.suiteId = item.suiteId;
+        // Clear the other parent when moving between suite/section
+        if (item.sectionId) tcUpdates.suiteId = null;
+        if (item.suiteId) tcUpdates.sectionId = null;
 
         await db
           .update(testCase)
