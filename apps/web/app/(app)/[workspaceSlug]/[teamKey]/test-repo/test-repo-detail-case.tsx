@@ -38,10 +38,11 @@ import { authClient } from "@/lib/auth-client";
 import { useWorkspace } from "@/lib/workspace-context";
 import { useTestRepoStore } from "@/lib/stores/test-repo-store";
 import {
-  TestCasePropertiesSidebar,
+  TestCasePropertiesSidebarContent,
   type TeamMember,
   type TestCasePropertyValues,
 } from "@/components/test-case-properties-sidebar";
+import { ResponsivePropertiesPanel } from "@/components/responsive-properties-panel";
 
 interface TestRepoDetailCaseProps {
   testCase: {
@@ -511,13 +512,16 @@ function TestRepoDetailCaseInner({
       </div>
 
       {/* Right sidebar - Properties */}
-      {showProperties && (
-        <TestCasePropertiesSidebar
+      <ResponsivePropertiesPanel
+        open={showProperties}
+        onOpenChange={setShowProperties}
+      >
+        <TestCasePropertiesSidebarContent
           values={properties}
           onPropertyChange={handlePropertyChange}
           members={members}
         />
-      )}
+      </ResponsivePropertiesPanel>
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

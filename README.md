@@ -158,10 +158,47 @@ All commands run from the repo root via pnpm workspace proxying.
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:push` | Push schema directly to DB (prototyping) |
 | `pnpm db:studio` | Open Drizzle Studio (DB browser) |
+| `pnpm db:seed` | Seed database with demo data (requires `NEXT_PUBLIC_IS_DEMO=true`) |
 | `pnpm docker:up` | Start local PostgreSQL + SeaweedFS |
 | `pnpm docker:down` | Stop Docker services (data preserved) |
 | `pnpm docker:reset` | Stop Docker services and delete all data |
 | `pnpm docker:logs` | Tail logs from Docker services |
+
+## Demo Mode
+
+LGTM supports a demo mode for hosting a public demo instance. When enabled, the app shows a banner with login credentials, auto-fills the login form, and a Vercel Cron job resets the database every 30 minutes.
+
+### Enabling Demo Mode
+
+Set these environment variables:
+
+```bash
+NEXT_PUBLIC_IS_DEMO=true    # Enables demo banner, auto-fills login, read-only credentials
+CRON_SECRET=your-secret     # Protects the /api/cron/reset endpoint
+```
+
+### Seeding Demo Data
+
+The seed script populates the database with realistic demo data:
+
+```bash
+pnpm db:seed
+```
+
+This creates:
+- **10 users** with varied roles (all login with password `demodemo1234`)
+- **3 teams** — Web Platform, Mobile App, API Services
+- **60 test cases** with steps, organized into suites and nested sections
+- **8 test runs** with results and per-step verdicts
+- **12 defects** with full traceability to test cases and runs
+- **Threaded comments** with emoji reactions and @mentions
+- Environments, cycles, test plans, tags, and shared steps
+
+The seed script only runs when `NEXT_PUBLIC_IS_DEMO=true`.
+
+### Automatic Reset (Vercel Cron)
+
+The `vercel.json` at the repo root configures a cron job that calls `GET /api/cron/reset` every 30 minutes. This endpoint verifies the `CRON_SECRET` header, wipes all tables, and re-seeds the database.
 
 ## CLI (`@lgtm/cli`)
 

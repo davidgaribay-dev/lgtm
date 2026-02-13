@@ -196,30 +196,32 @@ export function TestStepsEditor({
             </p>
           </div>
         ) : (
-          <div className="rounded-lg border bg-card">
-            {/* Table header */}
-            <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-3 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-              <div></div>
-              <div>Action</div>
-              <div>Test Data</div>
-              <div>Expected Result</div>
-              <div></div>
-            </div>
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="min-w-[600px]">
+              {/* Table header */}
+              <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-3 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+                <div></div>
+                <div>Action</div>
+                <div>Test Data</div>
+                <div>Expected Result</div>
+                <div></div>
+              </div>
 
-            {/* Table rows */}
-            {localSteps.map((step, index) => (
-              <DraggableStepRow
-                key={step.id}
-                step={step}
-                index={index}
-                disabled={disabled}
-                onUpdateStep={handleUpdateStep}
-                onBlur={handleStepBlur}
-                onDelete={handleDeleteStep}
-                moveStep={moveStep}
-                onDrop={handleDrop}
-              />
-            ))}
+              {/* Table rows */}
+              {localSteps.map((step, index) => (
+                <DraggableStepRow
+                  key={step.id}
+                  step={step}
+                  index={index}
+                  disabled={disabled}
+                  onUpdateStep={handleUpdateStep}
+                  onBlur={handleStepBlur}
+                  onDelete={handleDeleteStep}
+                  moveStep={moveStep}
+                  onDrop={handleDrop}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

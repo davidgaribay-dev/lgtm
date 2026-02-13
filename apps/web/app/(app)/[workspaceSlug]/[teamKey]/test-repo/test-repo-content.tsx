@@ -2,7 +2,9 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-media-query";
+import { Button } from "@/components/ui/button";
 import {
   useTestRepoStore,
   useTestRepoReady,
@@ -79,6 +81,7 @@ export function TestRepoContent({
   const creatingTestCase = useTestRepoStore((s) => s.creatingTestCase);
   const setCreatingTestCase = useTestRepoStore((s) => s.setCreatingTestCase);
   const ready = useTestRepoReady();
+  const isMobile = useIsMobile();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -233,6 +236,57 @@ export function TestRepoContent({
   const hasData = treeData.length > 0;
   const isCreating = !!creatingTestCase || !!pendingTestCaseId;
 
+  // Mobile: show tree OR detail, never both
+  if (isMobile) {
+    const showDetail = selectedNode && hasData;
+
+    return (
+      <div className={cn("flex h-svh flex-col", !ready && "invisible")}>
+        {showDetail ? (
+          <>
+            <div className="flex shrink-0 items-center border-b bg-card px-2 py-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={() => selectNode(null)}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to tree
+              </Button>
+            </div>
+            <div className="min-w-0 flex-1 overflow-y-auto bg-card">
+              {isCreating ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <TestRepoDetail
+                  projectId={projectId}
+                  selectedNode={selectedNode}
+                  suites={suites}
+                  sections={sections}
+                  testCases={testCases}
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 overflow-hidden bg-card">
+            {isCreating ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : ready ? (
+              <TestRepoTree data={treeData} projectId={projectId} />
+            ) : null}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop: split pane with resize handle
   return (
     <div
       className={cn("flex h-svh", !ready && "invisible")}

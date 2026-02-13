@@ -47,6 +47,7 @@ import {
 import { PageBreadcrumb } from "@/components/page-breadcrumb";
 import { CreateDefectDialog } from "../../../../defects/create-defect-dialog";
 import { AttachmentSection } from "@/components/attachments/attachment-section";
+import { ResponsivePropertiesPanel } from "@/components/responsive-properties-panel";
 
 interface RunInfo {
   id: string;
@@ -716,14 +717,8 @@ function TestResultExecutionInner({
       </div>
 
       {/* Properties sidebar */}
-      {propertiesOpen && (
-        <div className="w-80 shrink-0 overflow-y-auto border-l bg-card">
-          <div className="flex h-11 shrink-0 items-center border-b px-6">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Properties
-            </h3>
-          </div>
-          <div className="px-6 py-2">
+      <ResponsivePropertiesPanel open={propertiesOpen} onOpenChange={setPropertiesOpen}>
+        <div className="px-6 py-2">
             {/* Status */}
             <div className="flex items-center justify-between py-2.5">
               <span className="text-sm text-muted-foreground">Status</span>
@@ -837,8 +832,7 @@ function TestResultExecutionInner({
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </ResponsivePropertiesPanel>
 
       {/* Create Defect Dialog */}
       <CreateDefectDialog

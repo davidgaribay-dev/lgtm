@@ -28,7 +28,7 @@ export function SidebarMainArea({ children }: { children: React.ReactNode }) {
         "min-h-svh",
         !ready && "invisible",
         enableTransition && "transition-[margin-left] duration-200",
-        isExpanded ? "ml-64" : "ml-16",
+        isExpanded ? "md:ml-64" : "md:ml-16",
       )}
     >
       {children}

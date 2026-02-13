@@ -33,7 +33,9 @@ import { useDrag, useDrop, type ConnectDragSource } from "react-dnd";
 import { authClient } from "@/lib/auth-client";
 import { useWorkspace, type Team } from "@/lib/workspace-context";
 import { useSidebarStore, useSidebarReady } from "@/lib/stores/sidebar-store";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -138,8 +140,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { workspace, teams, isAdmin } = useWorkspace();
-  const { expanded, toggle, expandedTeams, toggleTeam } = useSidebarStore();
+  const { expanded, toggle, expandedTeams, toggleTeam, mobileOpen, setMobileOpen } = useSidebarStore();
   const ready = useSidebarReady();
+  const isMobile = useIsMobile();
   const [enableTransition, setEnableTransition] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -153,6 +156,15 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const isSettings = segments.length >= 2 && segments[1] === "settings";
   const isTeamSettings = segments.length >= 3 && segments[2] === "settings" && !isSettings;
   const teamSlug = isTeamSettings ? segments[1] : null;
+
+  // Auto-close mobile sheet on route change
+  const previousPathname = useRef(pathname);
+  useEffect(() => {
+    if (pathname !== previousPathname.current) {
+      setMobileOpen(false);
+      previousPathname.current = pathname;
+    }
+  }, [pathname, setMobileOpen]);
 
   useEffect(() => {
     if (ready) {
@@ -201,12 +213,132 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const isExpanded = isSettings || isTeamSettings ? true : expanded;
   const basePath = `/${workspace.slug}`;
 
+  const sidebarHeader = isSettings ? (
+    <SettingsHeader basePath={basePath} backLabel="Back to app" />
+  ) : isTeamSettings ? (
+    <SettingsHeader basePath={`${basePath}/${teamSlug}`} backLabel="Back to team" />
+  ) : (
+    <WorkspaceHeader
+      workspace={workspace}
+      user={user}
+      expanded={true}
+      ready={true}
+      toggle={toggle}
+      handleSignOut={handleSignOut}
+      basePath={basePath}
+    />
+  );
+
+  const sidebarNav = (
+    <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
+      {isSettings ? (
+        <>
+          {[
+            ...settingsNavItems,
+            ...(isAdmin
+              ? [
+                  {
+                    segment: "settings/members",
+                    label: "Members",
+                    icon: Users,
+                    exact: false,
+                  },
+                ]
+              : []),
+          ].map((item) => {
+            const href = `${basePath}/${item.segment}`;
+            const active = item.exact
+              ? pathname === href
+              : pathname === href || pathname.startsWith(href + "/");
+            return (
+              <NavItem
+                key={href}
+                href={href}
+                label={item.label}
+                icon={item.icon}
+                active={active}
+                expanded
+              />
+            );
+          })}
+        </>
+      ) : isTeamSettings ? (
+        <>
+          {teamSettingsNavItems.map((item) => {
+            const href = `${basePath}/${teamSlug}/${item.segment}`;
+            const active = item.exact
+              ? pathname === href
+              : pathname === href || pathname.startsWith(href + "/");
+            return (
+              <NavItem
+                key={href}
+                href={href}
+                label={item.label}
+                icon={item.icon}
+                active={active}
+                expanded
+              />
+            );
+          })}
+        </>
+      ) : (
+        <>
+          <NavItem
+            href={`${basePath}/dashboard`}
+            label="Home"
+            icon={Home}
+            active={pathname === `${basePath}/dashboard`}
+            expanded
+          />
+
+          {/* Your teams section */}
+          <div className="pt-4">
+            <div className="mb-1 flex items-center justify-between px-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Your teams
+              </p>
+              {isAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setCreateDialogOpen(true)}
+                      className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Add team</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+            {localTeams.map((team, index) => (
+              <DraggableTeamItem
+                key={team.id}
+                team={team}
+                index={index}
+                basePath={basePath}
+                pathname={pathname}
+                isOpen={expandedTeams[team.id] ?? false}
+                onToggle={() => toggleTeam(team.id)}
+                moveTeam={moveTeam}
+                onDrop={persistOrder}
+                canDrag={isAdmin && !isMobile}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </nav>
+  );
+
   return (
     <>
+      {/* Desktop sidebar */}
       <aside
         className={cn(
-          "fixed bottom-0 left-0 z-40 flex flex-col border-r bg-card",
-          !ready && "invisible",
+          "fixed bottom-0 left-0 z-40 flex-col border-r bg-card",
+          "hidden md:flex",
+          !ready && "md:invisible",
           enableTransition && "transition-[width] duration-200",
           isExpanded ? "w-64" : "w-16",
         )}
@@ -361,17 +493,28 @@ export function AppSidebar({ user }: AppSidebarProps) {
             </>
           )}
         </nav>
-
-        <CreateTeamDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          organizationId={workspace.id}
-          onCreated={() => {
-            setCreateDialogOpen(false);
-            router.refresh();
-          }}
-        />
       </aside>
+
+      {/* Mobile sidebar (Sheet) */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-64 p-0" showCloseButton={false}>
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <div className="flex h-full flex-col">
+            {sidebarHeader}
+            {sidebarNav}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <CreateTeamDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        organizationId={workspace.id}
+        onCreated={() => {
+          setCreateDialogOpen(false);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

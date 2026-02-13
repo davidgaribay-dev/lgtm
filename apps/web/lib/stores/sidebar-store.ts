@@ -8,6 +8,8 @@ interface SidebarState {
   setExpanded: (expanded: boolean) => void;
   expandedTeams: Record<string, boolean>;
   toggleTeam: (teamId: string) => void;
+  mobileOpen: boolean;
+  setMobileOpen: (open: boolean) => void;
 }
 
 export const useSidebarStore = create<SidebarState>()(
@@ -24,9 +26,15 @@ export const useSidebarStore = create<SidebarState>()(
             [teamId]: !state.expandedTeams[teamId],
           },
         })),
+      mobileOpen: false,
+      setMobileOpen: (open) => set({ mobileOpen: open }),
     }),
     {
       name: "sidebar",
+      partialize: (state) => ({
+        expanded: state.expanded,
+        expandedTeams: state.expandedTeams,
+      }),
     },
   ),
 );

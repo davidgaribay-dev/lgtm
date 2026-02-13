@@ -40,23 +40,16 @@ interface TestCasePropertiesSidebarProps {
 const selectTriggerClassName =
   "h-7 w-auto gap-1.5 border-0 bg-transparent px-2 text-sm shadow-none focus:ring-0 dark:bg-transparent dark:hover:bg-transparent";
 
-export function TestCasePropertiesSidebar({
+/** Inner content without wrapper — used by ResponsivePropertiesPanel */
+export function TestCasePropertiesSidebarContent({
   values,
   onPropertyChange,
   members,
   disabled = false,
 }: TestCasePropertiesSidebarProps) {
   return (
-    <div className="w-80 shrink-0 overflow-y-auto border-l bg-card">
-      <div className="flex h-11 shrink-0 items-center border-b px-6">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Properties
-        </h3>
-      </div>
-      <div className="px-6 py-2">
-        <div>
-
-          <div>
+    <div className="px-6 py-2">
+      <div>
             {/* Status */}
             <div className="flex items-center justify-between py-2.5">
               <span className="text-sm text-muted-foreground">Status</span>
@@ -252,9 +245,21 @@ export function TestCasePropertiesSidebar({
               </Select>
             </div>
 
-          </div>
-        </div>
       </div>
+    </div>
+  );
+}
+
+/** Full sidebar with w-80 wrapper — used for backward compatibility */
+export function TestCasePropertiesSidebar(props: TestCasePropertiesSidebarProps) {
+  return (
+    <div className="w-80 shrink-0 overflow-y-auto border-l bg-card">
+      <div className="flex h-11 shrink-0 items-center border-b px-6">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Properties
+        </h3>
+      </div>
+      <TestCasePropertiesSidebarContent {...props} />
     </div>
   );
 }

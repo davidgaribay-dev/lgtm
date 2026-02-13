@@ -237,7 +237,7 @@ export function TestRunsContent({
                 </span>
 
                 {/* Right metadata */}
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="hidden shrink-0 items-center gap-3 md:flex">
                   {/* Progress bar */}
                   <div className="w-24">
                     <StackedProgressBar
@@ -263,6 +263,10 @@ export function TestRunsContent({
                     {formatRelativeDate(run.createdAt)}
                   </span>
                 </div>
+                {/* Mobile: compact date only */}
+                <span className="shrink-0 text-[11px] text-muted-foreground md:hidden">
+                  {formatRelativeDate(run.createdAt)}
+                </span>
               </Link>
             );
           }}

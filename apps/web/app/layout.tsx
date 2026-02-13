@@ -19,6 +19,7 @@ const sirivennela = Sirivennela({
   weight: "400",
   variable: "--font-sirivennela",
   subsets: ["latin"],
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {

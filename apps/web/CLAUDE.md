@@ -16,6 +16,7 @@ pnpm db:generate      # Generate Drizzle migration SQL from schema changes
 pnpm db:migrate       # Apply pending migrations to the database
 pnpm db:push          # Push schema directly to DB (prototyping only)
 pnpm db:studio        # Browser UI for browsing/editing DB data
+pnpm db:seed          # Seed DB with demo data (requires NEXT_PUBLIC_IS_DEMO=true)
 ```
 
 ## Architecture
@@ -439,15 +440,15 @@ const result = await storage.put(key, buffer, contentType);
 - `lib/utils.ts` exports `cn()` (clsx + tailwind-merge) and `generateSlug()` for URL slug generation
 - Dark mode support via `next-themes` and `.dark` class variant
 - Icons: `lucide-react`
-- Collapsible sidebar (`components/app-sidebar.tsx`) with Zustand-persisted state (`lib/stores/sidebar-store.ts`), hydration-safe via `useSidebarReady()` hook. Linear-style "Your teams" section with collapsible team items, "+" button for quick team creation (admin-only), and drag-and-drop reordering via `react-dnd` with `HTML5Backend` (admin-only). Team order persists to DB via `display_order` column. Sidebar detects both workspace settings (`isSettings`) and team settings (`isTeamSettings`) modes and adjusts navigation accordingly.
+- Collapsible sidebar (`components/app-sidebar.tsx`) with Zustand-persisted state (`lib/stores/sidebar-store.ts`), hydration-safe via `useSidebarReady()` hook. Linear-style "Your teams" section with collapsible team items, "+" button for quick team creation (admin-only), and drag-and-drop reordering via `react-dnd` with `HTML5Backend` (admin-only, disabled on mobile since HTML5Backend doesn't support touch). Team order persists to DB via `display_order` column. Sidebar detects both workspace settings (`isSettings`) and team settings (`isTeamSettings`) modes and adjusts navigation accordingly. On mobile (`< md` / 768px), the sidebar renders as a Sheet drawer from the left, controlled by `mobileOpen` state in the sidebar store. The Sheet auto-closes on pathname changes.
 - Shared `CreateTeamDialog` (`components/create-team-dialog.tsx`) — reused in sidebar and teams page for team creation with slug auto-generation and availability checking
 - Workspace context (`lib/workspace-context.tsx`) — provides `workspace`, `teams`, `userRole`, `isAdmin` to all workspace-scoped pages
 - Team settings context (`lib/team-settings-context.tsx`) — provides team info to team settings pages
 - Shared `GroupedList<T>` component (`components/grouped-list.tsx`) — **preferred list component** for all list views. Renders items in collapsible status groups with chevron toggles, colored status dots, group labels with counts, and empty states. Exports `GroupedList<T>`, `ListGroup<T>` interface, `groupedListRowClass` (consistent row styling with hover-reveal `...` dropdown via `group`/`group-hover:opacity-100`), and `formatRelativeDate()`. Used by: defects, test runs (list + detail results), environments, cycles, test plans, API tokens (workspace + team). **Prefer `GroupedList` over `DataTable` for new list views.**
 - `DataTable` component (`components/data-table.tsx`) wrapping TanStack React Table with shadcn Table primitives — legacy, prefer `GroupedList` for new list views
-- Shared `PageBreadcrumb` component (`components/page-breadcrumb.tsx`) — renders a breadcrumb bar with chevron separators; accepts `items` array (label + optional href/onClick) and `children` for right-side action buttons (menus, toggles, navigation). Used as the top bar on all list and detail pages
+- Shared `PageBreadcrumb` component (`components/page-breadcrumb.tsx`) — client component rendering a breadcrumb bar with chevron separators; accepts `items` array (label + optional href/onClick) and `children` for right-side action buttons (menus, toggles, navigation). Used as the top bar on all list and detail pages. Includes a hamburger menu button (`md:hidden`) that opens the mobile sidebar Sheet. Breadcrumb items use `truncate` and `min-w-0` for overflow handling on narrow screens
 - Shared `LogViewer` component (`components/log-viewer.tsx`) — renders log output with ANSI color support (via `anser` library), collapsible step groups, line numbers, and full-text search; theme-aware with dual light/dark ANSI color palettes
-- Shared `TestCasePropertiesSidebar` component (`components/test-case-properties-sidebar.tsx`) — right sidebar with dropdown selectors for test case properties (status, priority, severity, type, automation status, behavior, layer, flaky toggle, assignee)
+- Shared `TestCasePropertiesSidebar` component (`components/test-case-properties-sidebar.tsx`) — right sidebar with dropdown selectors for test case properties (status, priority, severity, type, automation status, behavior, layer, flaky toggle, assignee). Exports `TestCasePropertiesSidebarContent` (property rows only, no wrapper) for use inside `ResponsivePropertiesPanel`
 - Shared `CommentSection` component (`components/comments/comment-section.tsx`) — threaded comments with replies, editing, resolving, emoji reactions, and @mentions; polymorphic via entityType + entityId
 - Shared auth UI components (`components/auth-ui.tsx`): `AuthInput`, `AuthLabel`, `PasswordInput`
 - Shared `TestCaseTreePicker` component (`components/test-case-tree-picker.tsx`) — reusable tree picker with checkboxes for selecting test cases; manages own expand/collapse and search state; used by test plan dialogs and create test run dialog
@@ -455,6 +456,9 @@ const result = await storage.put(key, buffer, contentType);
 - Shared `AttachmentSection` component (`components/attachments/attachment-section.tsx`) — polymorphic attachment manager for any entity; SWR-loaded list, upload button (member+), delete button (admin/owner or own uploads); uses `AttachmentList` for display and `AttachmentUploader` for uploads
 - Shared `AttachmentList` component (`components/attachments/attachment-list.tsx`) — grid display of attachments with image thumbnails, video/file icons; clicking images/videos opens a preview dialog with navigation arrows and download button; non-previewable files open in new tab
 - Shared `AttachmentUploader` component (`components/attachments/attachment-uploader.tsx`) — drag-and-drop file upload with progress indicator; validates MIME types and file size; posts to `/api/attachments`
+- Shared `PageContainer` component (`components/page-container.tsx`) — client component wrapping settings/dashboard pages with a mobile hamburger header bar (`md:hidden`) for sidebar access and responsive padding (`px-4 py-6 md:px-6 md:py-8`)
+- Shared `ResponsivePropertiesPanel` component (`components/responsive-properties-panel.tsx`) — wrapper for properties sidebars that renders inline `w-80 border-l` on desktop and a Sheet from the right on mobile. Accepts `open`, `onOpenChange`, `children`, `title`. Auto-closes on first mobile render when `open` defaults to `true` (prevents Sheet from auto-opening)
+- SSR-safe media query hooks (`hooks/use-media-query.ts`) — `useMediaQuery(query)` using `useSyncExternalStore` (returns `false` on server), `useIsMobile()` convenience wrapper for `(max-width: 767px)`
 - Team settings components (`components/team-settings/`) — `team-info-form.tsx`, `team-tokens-list.tsx`, `test-plans-list.tsx`, `cycles-list.tsx`, `shared-steps-list.tsx`, `shared-step-detail.tsx` using `PageBreadcrumb` + `GroupedList` layout
 
 **GroupedList pattern:** All list views (defects, test runs, environments, cycles, test plans, shared steps, tokens) use a consistent layout: `PageBreadcrumb` header with "New" button → `GroupedList` body with items grouped by status. Each row uses `groupedListRowClass` and includes a hover-reveal `...` `DropdownMenu` (using `group` + `group-hover:opacity-100`), a colored status dot, the item name, and right-aligned metadata. For SWR-loaded data, show a `RefreshCw` spinner before the list renders. The test run detail page also uses `GroupedList` for its results tab (grouped by result status), combined with a collapsible properties sidebar.
@@ -463,9 +467,20 @@ const result = await storage.put(key, buffer, contentType);
 
 **Date formatting:** Locale-dependent dates (e.g., `toLocaleString()`) must be rendered client-side only to avoid hydration mismatches. Use `useState("—")` + `useEffect` to format after mount — never call `toLocaleString()` in the initial render of a server-rendered component.
 
+**Mobile responsiveness:** The app is fully responsive with `md` (768px) as the single breakpoint. Key patterns:
+
+- **Detection:** Use `useIsMobile()` from `hooks/use-media-query.ts` (SSR-safe, returns `false` on server). Never use `window.matchMedia` directly.
+- **Sidebar:** Desktop renders as fixed `<aside>` (`hidden md:flex`). Mobile renders as a `<Sheet side="left">` controlled by `mobileOpen` in `sidebar-store.ts`. `mobileOpen` is excluded from localStorage persistence via `partialize`. Hamburger buttons in `PageBreadcrumb` (for list/detail pages) and `PageContainer` (for settings/dashboard pages) open the Sheet.
+- **Properties panels:** Use `ResponsivePropertiesPanel` to wrap property content. Desktop: inline `w-80 border-l`. Mobile: `Sheet side="right"`. The component auto-closes on first mobile render when `open` defaults to `true`. When adding a new detail page with a properties sidebar, wrap the property content in `<ResponsivePropertiesPanel>` instead of a raw `w-80` div.
+- **Split panes:** The test repo uses stacked layout on mobile — shows tree OR detail, never both. When a node is selected, the detail view renders with a "Back to tree" button. The resize handle is hidden on mobile.
+- **Layout margins:** `sidebar-main-area.tsx` uses `ml-0 md:ml-64` / `ml-0 md:ml-16` (no left margin on mobile since sidebar is a Sheet).
+- **List metadata:** Right-aligned metadata in list rows uses `hidden md:flex` to hide on mobile. A compact mobile-only date uses `md:hidden`. See `test-runs-content.tsx` and `defects-content.tsx` for examples.
+- **Wide tables:** Tables that don't fit mobile widths (e.g., `test-steps-editor.tsx`) use `overflow-x-auto` wrapper with `min-w-[600px]` inner container for horizontal scrolling.
+- **Drag and drop:** `react-dnd` with `HTML5Backend` doesn't support touch events. Disable `canDrag` on mobile for DnD features (sidebar team reorder, test step reorder).
+
 ### Test Repository
 
-The test repo page (`/{workspace}/{team}/test-repo`) is a split-pane view: tree sidebar (left) + detail pane (right), managed by Zustand (`lib/stores/test-repo-store.ts`).
+The test repo page (`/{workspace}/{team}/test-repo`) is a split-pane view: tree sidebar (left) + detail pane (right), managed by Zustand (`lib/stores/test-repo-store.ts`). On mobile, uses a stacked layout — shows tree or detail exclusively, with a "Back to tree" button when viewing details.
 
 **Tree sidebar** (`test-repo-tree.tsx`): uses `react-arborist` for virtualized rendering with drag-and-drop reorder. Supports suites, sections (nested), and test cases. Inline folder creation/rename. Selection updates `selectedNode` in Zustand store.
 
@@ -653,3 +668,36 @@ All in `apps/web/.env.local` (gitignored via `.env*` pattern). Copy from `.env.l
 - `LOG_TO_FILE` — set to `"true"` for file-based logging on VPS (default: false, logs to stdout)
 - `LOG_FILE_PATH` — path to log file (default: ./logs/app.log)
 - `LOG_MAX_FILES` — days of log retention (default: 30)
+
+**Demo mode:**
+- `NEXT_PUBLIC_IS_DEMO` — set to `"true"` to enable demo mode (banner, auto-filled login, read-only credentials, seed script guard)
+- `CRON_SECRET` — bearer token for the `GET /api/cron/reset` cron endpoint (Vercel Cron sends `Authorization: Bearer <secret>`)
+
+## Demo Mode & Seed Data
+
+When `NEXT_PUBLIC_IS_DEMO=true`:
+- An amber banner appears on every page showing login credentials (`components/demo-banner.tsx`)
+- The login form auto-fills with `demo@lgtm.dev` / `demodemo1234` and fields are read-only (`app/(auth)/login/login-form.tsx`)
+- `pnpm db:seed` populates the database with realistic demo data (10 users, 3 teams, 60 test cases, etc.)
+- A Vercel Cron job (`vercel.json`) calls `GET /api/cron/reset` every 30 minutes to wipe and re-seed
+
+### Seed Data Architecture
+
+The seed data module lives in `lib/demo-seed-data/` as a modular directory:
+
+| File | Contents |
+|------|----------|
+| `helpers.ts` | `SeedDb` type, `uid()`, `daysAgo()`, `hoursAgo()` helpers |
+| `users.ts` | 10 users with accounts, organization, org-level members |
+| `teams.ts` | 3 projects (WEB, MOB, API), project members, environments, cycles, workspace cycles |
+| `test-cases.ts` | 8 test suites, ~25 nested sections, 60 test cases, ~240 steps, 15 tags, shared steps |
+| `test-runs.ts` | 6 test plans, 8 test runs, ~150 results, ~400 step results |
+| `defects.ts` | 12 defects with traceability to test results/runs/cases |
+| `comments.ts` | ~25 threaded comments, reactions, @mentions |
+| `index.ts` | `seedAllData(db)` — orchestrator that inserts in FK-safe order and updates project counters |
+
+Two entry points:
+- `scripts/seed.ts` — standalone script for `pnpm db:seed`, creates own `drizzle("node-postgres")` connection
+- `lib/demo-seed.ts` — `resetAndSeed()` used by the cron endpoint (`app/api/cron/reset/route.ts`), uses the app's `@/db` instance
+
+Both call `seedAllData(db)` from the shared module after running `drizzle-seed`'s `reset()` to truncate all tables.
