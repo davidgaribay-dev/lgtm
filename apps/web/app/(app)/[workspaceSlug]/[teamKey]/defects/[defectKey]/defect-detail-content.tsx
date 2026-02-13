@@ -529,7 +529,7 @@ function DefectDetailInner({
                       Test Case
                     </span>
                     <Link
-                      href={`/${workspaceSlug}/${teamKey}/test-repo`}
+                      href={`/${workspaceSlug}/${teamKey}/test-repo?case=${defect.testCaseKey}`}
                       className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs hover:underline"
                     >
                       {defect.testCaseKey}
