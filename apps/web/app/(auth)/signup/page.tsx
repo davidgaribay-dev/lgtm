@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Create Account — looptn",
 };
 
+// Force dynamic rendering to enable CSP nonces
+export const dynamic = "force-dynamic";
+
 export default function SignupPage() {
   return (
     <Suspense>
