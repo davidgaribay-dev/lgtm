@@ -19,9 +19,23 @@ export const auth = betterAuth({
   }),
 
   // CSRF protection: trust localhost in dev, production URL in prod
-  trustedOrigins: [
-    process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  ],
+  trustedOrigins: (() => {
+    const raw = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+    const base = raw.replace(/\/+$/, ""); // strip trailing slashes
+    const origins = [base];
+    // Also trust the www / non-www variant of the domain
+    try {
+      const { hostname } = new URL(base);
+      if (hostname.startsWith("www.")) {
+        origins.push(base.replace("://www.", "://"));
+      } else if (!hostname.includes("localhost")) {
+        origins.push(base.replace("://", "://www."));
+      }
+    } catch {
+      // invalid URL — just use the raw value
+    }
+    return origins;
+  })(),
 
   user: {
     additionalFields: {
