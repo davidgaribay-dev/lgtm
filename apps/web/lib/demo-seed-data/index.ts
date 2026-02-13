@@ -102,13 +102,23 @@ export async function seedAllData(
     webDefectIds: defectIds.web,
     mobDefectIds: defectIds.mob,
     apiDefectIds: defectIds.api,
-    webTestCaseIds: webCases.slice(0, 3).map((tc) => tc.id),
-    mobTestCaseIds: mobCases.slice(0, 3).map((tc) => tc.id),
-    apiTestCaseIds: apiCases.slice(0, 3).map((tc) => tc.id),
+    webTestCaseIds: webCases.slice(0, 10).map((tc) => tc.id),
+    mobTestCaseIds: mobCases.slice(0, 7).map((tc) => tc.id),
+    apiTestCaseIds: apiCases.slice(0, 6).map((tc) => tc.id),
     failedResultIds: testResults
       .filter((r) => r.status === "failed")
       .slice(0, 3)
       .map((r) => ({ id: r.id, teamKey: r.teamKey })),
+    testRunIds: [
+      { id: testRunIds.webTr1, teamKey: "WEB" },
+      { id: testRunIds.webTr2, teamKey: "WEB" },
+      { id: testRunIds.webTr3, teamKey: "WEB" },
+      { id: testRunIds.mobTr1, teamKey: "MOB" },
+      { id: testRunIds.mobTr2, teamKey: "MOB" },
+      { id: testRunIds.apiTr1, teamKey: "API" },
+      { id: testRunIds.apiTr2, teamKey: "API" },
+      { id: testRunIds.apiTr3, teamKey: "API" },
+    ],
   };
 
   await seedComments(db, u, t, targets);

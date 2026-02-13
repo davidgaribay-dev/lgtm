@@ -88,6 +88,7 @@ export interface TestCaseRef {
   projectId: string;
   teamKey: string;
   caseNumber: number;
+  caseKey: string;
   stepIds: string[];
 }
 
@@ -758,7 +759,7 @@ export async function seedTestCases(
       allTagLinks.push({ testCaseId: caseId, tagId, createdAt: daysAgo(tc.createdDaysAgo), updatedAt: daysAgo(tc.createdDaysAgo) });
     }
 
-    allRefs.push({ id: caseId, projectId: t.web, teamKey: "WEB", caseNumber: caseNum, stepIds });
+    allRefs.push({ id: caseId, projectId: t.web, teamKey: "WEB", caseNumber: caseNum, caseKey: `WEB-${caseNum}`, stepIds });
   }
 
   // ── MOB Test Cases (20) ─────────────────────────────────
@@ -1147,7 +1148,7 @@ export async function seedTestCases(
       allTagLinks.push({ testCaseId: caseId, tagId, createdAt: daysAgo(tc.createdDaysAgo), updatedAt: daysAgo(tc.createdDaysAgo) });
     }
 
-    allRefs.push({ id: caseId, projectId: t.mob, teamKey: "MOB", caseNumber: caseNum, stepIds });
+    allRefs.push({ id: caseId, projectId: t.mob, teamKey: "MOB", caseNumber: caseNum, caseKey: `MOB-${caseNum}`, stepIds });
   }
 
   // ── API Test Cases (20) ─────────────────────────────────
@@ -1538,7 +1539,7 @@ export async function seedTestCases(
       allTagLinks.push({ testCaseId: caseId, tagId, createdAt: daysAgo(tc.createdDaysAgo), updatedAt: daysAgo(tc.createdDaysAgo) });
     }
 
-    allRefs.push({ id: caseId, projectId: t.api, teamKey: "API", caseNumber: caseNum, stepIds });
+    allRefs.push({ id: caseId, projectId: t.api, teamKey: "API", caseNumber: caseNum, caseKey: `API-${caseNum}`, stepIds });
   }
 
   // ── Bulk inserts ────────────────────────────────────────

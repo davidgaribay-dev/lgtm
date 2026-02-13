@@ -1,5 +1,5 @@
 import * as schema from "@/db/schema";
-import { type SeedDb, uid, daysAgo, hoursAgo } from "./helpers";
+import { type SeedDb, uid, daysAgo } from "./helpers";
 import type { UserIds } from "./users";
 import type { TeamIds, CycleIds, WorkspaceCycleIds, EnvironmentIds } from "./teams";
 import type { TestCaseRef } from "./test-cases";
@@ -717,6 +717,156 @@ export async function seedTestRuns(
     await db
       .insert(schema.testStepResult)
       .values(stepResultRows.slice(i, i + 500));
+  }
+
+  // ── Test Run Logs ──
+
+  const logRows: {
+    id: string;
+    testRunId: string;
+    testResultId: string | null;
+    stepName: string | null;
+    chunkIndex: number;
+    content: string;
+    lineOffset: number;
+    lineCount: number;
+    createdAt: Date;
+  }[] = [];
+
+  // Add logs to runs that have been started (not pending)
+  for (const run of runDefs.filter((r) => r.status !== "pending")) {
+    const runResults = allTestResults.filter((r) => r.testRunId === run.id);
+
+    // Run-level setup logs
+    const setupTime = run.startedAt ?? run.createdAt;
+    let lineOffset = 0;
+
+    // Setup log chunk
+    const setupLog = `[${setupTime.toISOString()}] Test run ${run.runKey} started
+[${setupTime.toISOString()}] Environment: ${run.environmentId}
+[${setupTime.toISOString()}] Executor: ${run.executedBy ?? "system"}
+[${setupTime.toISOString()}] Test plan: ${run.testPlanId ?? "ad-hoc"}
+[${setupTime.toISOString()}] Initializing test environment...
+[${setupTime.toISOString()}] ✓ Database connection established
+[${setupTime.toISOString()}] ✓ Test data loaded
+[${setupTime.toISOString()}] ✓ Browser context initialized
+[${setupTime.toISOString()}] Ready to execute ${runResults.length} test cases
+`;
+    const setupLineCount = setupLog.split('\n').length - 1;
+
+    logRows.push({
+      id: uid(),
+      testRunId: run.id,
+      testResultId: null,
+      stepName: null,
+      chunkIndex: 0,
+      content: setupLog,
+      lineOffset,
+      lineCount: setupLineCount,
+      createdAt: setupTime,
+    });
+
+    lineOffset += setupLineCount;
+
+    // Add logs for a sample of test results (to keep seed data size reasonable)
+    // Focus on failed/blocked results and a few passed ones
+    const resultsWithLogs = runResults.filter((r) =>
+      r.status === "failed" || r.status === "blocked" || rng() < 0.2
+    ).slice(0, 15); // Cap at 15 results per run
+
+    for (const result of resultsWithLogs) {
+      const resultRow = resultRows.find((r) => r.id === result.id);
+      if (!resultRow || !resultRow.executedAt) continue;
+
+      const testCase = testCases.find((tc) => tc.id === result.testCaseId);
+      if (!testCase) continue;
+
+      const logTime = resultRow.executedAt;
+      let resultLog = '';
+
+      if (result.status === "passed") {
+        resultLog = `[${logTime.toISOString()}] → Executing test case ${testCase.caseKey}
+[${logTime.toISOString()}]   ✓ Step 1: Navigate to login page
+[${logTime.toISOString()}]   ✓ Step 2: Enter credentials
+[${logTime.toISOString()}]   ✓ Step 3: Click submit button
+[${logTime.toISOString()}]   ✓ Step 4: Verify successful login
+[${logTime.toISOString()}] ✓ Test case ${testCase.caseKey} passed (${resultRow.duration}ms)
+`;
+      } else if (result.status === "failed") {
+        resultLog = `[${logTime.toISOString()}] → Executing test case ${testCase.caseKey}
+[${logTime.toISOString()}]   ✓ Step 1: Navigate to login page
+[${logTime.toISOString()}]   ✓ Step 2: Enter credentials
+[${logTime.toISOString()}]   ✗ Step 3: Click submit button
+[${logTime.toISOString()}]     ERROR: Element not found: button[type="submit"]
+[${logTime.toISOString()}]     Timeout waiting for selector after 30000ms
+[${logTime.toISOString()}]     Screenshot saved: failure-${result.id}.png
+[${logTime.toISOString()}] ✗ Test case ${testCase.caseKey} failed (${resultRow.duration}ms)
+[${logTime.toISOString()}]   Failure reason: ${resultRow.comment ?? "Assertion failed"}
+`;
+      } else if (result.status === "blocked") {
+        resultLog = `[${logTime.toISOString()}] → Executing test case ${testCase.caseKey}
+[${logTime.toISOString()}]   ⊘ Test case blocked: ${resultRow.comment ?? "Prerequisite not met"}
+[${logTime.toISOString()}]   Skipping execution
+[${logTime.toISOString()}] ⊘ Test case ${testCase.caseKey} blocked
+`;
+      } else if (result.status === "skipped") {
+        resultLog = `[${logTime.toISOString()}] → Skipping test case ${testCase.caseKey}
+[${logTime.toISOString()}] ⊘ Test case ${testCase.caseKey} skipped
+`;
+      }
+
+      if (resultLog) {
+        const resultLineCount = resultLog.split('\n').length - 1;
+        logRows.push({
+          id: uid(),
+          testRunId: run.id,
+          testResultId: result.id,
+          stepName: null,
+          chunkIndex: 0,
+          content: resultLog,
+          lineOffset,
+          lineCount: resultLineCount,
+          createdAt: logTime,
+        });
+        lineOffset += resultLineCount;
+      }
+    }
+
+    // Run completion log (only if completed)
+    if (run.completedAt) {
+      const completionLog = `
+[${run.completedAt.toISOString()}] Test run ${run.runKey} completed
+[${run.completedAt.toISOString()}] Status: ${run.status}
+[${run.completedAt.toISOString()}] Results summary:
+[${run.completedAt.toISOString()}]   Passed: ${runResults.filter((r) => r.status === "passed").length}
+[${run.completedAt.toISOString()}]   Failed: ${runResults.filter((r) => r.status === "failed").length}
+[${run.completedAt.toISOString()}]   Blocked: ${runResults.filter((r) => r.status === "blocked").length}
+[${run.completedAt.toISOString()}]   Skipped: ${runResults.filter((r) => r.status === "skipped").length}
+[${run.completedAt.toISOString()}] ✓ Cleanup complete
+`;
+      const completionLineCount = completionLog.split('\n').length - 1;
+
+      logRows.push({
+        id: uid(),
+        testRunId: run.id,
+        testResultId: null,
+        stepName: null,
+        chunkIndex: logRows.filter((l) => l.testRunId === run.id && l.testResultId === null).length,
+        content: completionLog,
+        lineOffset,
+        lineCount: completionLineCount,
+        createdAt: run.completedAt,
+      });
+    }
+  }
+
+  // Bulk insert logs
+  if (logRows.length > 0) {
+    for (let i = 0; i < logRows.length; i += 500) {
+      await db
+        .insert(schema.testRunLog)
+        .values(logRows.slice(i, i + 500));
+    }
   }
 
   return { testRunIds: runIds, testResults: allTestResults };

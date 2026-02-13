@@ -8,7 +8,10 @@ export default async function WorkspaceRedirect() {
     headers: await headers(),
   });
 
-  if (!session) redirect("/login");
+  if (!session) {
+    // Clear any stale session cookies before redirecting to prevent loops
+    redirect("/api/auth/clear-session");
+  }
 
   const slug = await getFirstWorkspaceSlug(session.user.id);
 
