@@ -1,0 +1,109 @@
+---
+title: CI/CD Integration
+description: End-to-end CI/CD setup with the Playwright reporter and CLI
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+## Overview
+
+LGTM integrates into CI/CD pipelines through two tools:
+
+| Tool | Purpose |
+|------|---------|
+| **Playwright Reporter** | Automatically uploads test results from Playwright runs |
+| **CLI** | Query test data, create runs, submit results from any test framework |
+
+## GitHub Actions example
+
+### Playwright tests with LGTM reporter
+
+```yaml
+name: E2E Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - run: npm ci
+      - run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          LGTM_API_URL: ${{ secrets.LGTM_API_URL }}
+          LGTM_API_TOKEN: ${{ secrets.LGTM_API_TOKEN }}
+          LGTM_PROJECT_KEY: ENG
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+```
+
+### CLI-based workflow
+
+For non-Playwright test frameworks, use the CLI:
+
+```yaml
+name: Tests
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      LGTM_API_URL: ${{ secrets.LGTM_API_URL }}
+      LGTM_API_TOKEN: ${{ secrets.LGTM_API_TOKEN }}
+      LGTM_PROJECT_KEY: ENG
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npm install -g @lgtm/cli
+
+      # Create a test run
+      - name: Create test run
+        id: create-run
+        run: |
+          RESULT=$(lgtm test-runs create -p ENG -n "CI #$GITHUB_RUN_NUMBER" \
+            --cases ENG-1,ENG-2,ENG-3 --json)
+          echo "run_id=$(echo $RESULT | jq -r '.id')" >> $GITHUB_OUTPUT
+
+      # Run your tests and submit results
+      - name: Run tests and submit
+        run: |
+          npm test
+          lgtm test-results bulk --run ${{ steps.create-run.outputs.run_id }} \
+            -f test-results.json
+```
+
+## Required secrets
+
+| Secret | Description |
+|--------|-------------|
+| `LGTM_API_URL` | Your LGTM instance URL |
+| `LGTM_API_TOKEN` | API token with appropriate permissions |
+
+## Best practices
+
+1. **Use project-scoped tokens** — Create a token scoped to the specific project your CI pipeline targets.
+2. **Set descriptive run names** — Include the CI run number and branch name for traceability.
+3. **Enable auto-create defects** — Automatically file bugs for new failures in CI.
+4. **Upload artifacts** — Enable `uploadAttachments` to capture screenshots and traces for failed tests.
+5. **Use `LGTM_DEBUG=true`** when troubleshooting reporter issues.

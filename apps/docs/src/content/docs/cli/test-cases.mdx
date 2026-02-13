@@ -1,0 +1,54 @@
+---
+title: lgtm test-cases
+description: List and get test cases
+---
+
+## Commands
+
+### `lgtm test-cases list`
+
+List test cases for a project.
+
+```bash
+lgtm test-cases list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key (required unless set in config) |
+| `--status <status>` | Filter by status: `active`, `draft`, `deprecated`, `review` |
+| `--priority <priority>` | Filter by priority: `low`, `medium`, `high`, `critical` |
+| `--type <type>` | Filter by type: `functional`, `smoke`, `regression`, etc. |
+
+**Output columns:** Key, Title, Status, Priority, Type
+
+### `lgtm test-cases get <key>`
+
+Get a test case by its human-readable key, including test steps.
+
+```bash
+lgtm test-cases get ENG-42
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<key>` | Test case key (e.g., `ENG-42`) |
+
+**Output:** Full test case details including title, description, preconditions, properties, and all test steps with action/expected result.
+
+### Examples
+
+```bash
+# List all active test cases
+lgtm test-cases list -p ENG --status active
+
+# Get a specific case with JSON output
+lgtm test-cases get ENG-42 --json
+
+# List critical smoke tests
+lgtm test-cases list -p ENG --priority critical --type smoke
+```

@@ -1,0 +1,31 @@
+---
+title: Environments
+description: Named test environments for test execution context
+---
+
+**Environments** represent named configurations where tests are executed (e.g., development, staging, production).
+
+## Properties
+
+| Property | Type | Values |
+|----------|------|--------|
+| **Name** | string | Required, unique per project |
+| **URL** | string | Optional base URL |
+| **Description** | string | Optional |
+| **Type** | enum | `development`, `staging`, `qa`, `production`, `custom` |
+| **Is Default** | boolean | Default environment for the project |
+
+## Usage
+
+Environments can be linked to:
+- **Test Runs** — Track which environment a run targets
+- **Defects** — Record where a bug was observed
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/environments` | List by project |
+| POST | `/api/environments` | Create environment |
+| PUT | `/api/environments/{id}` | Update environment |
+| DELETE | `/api/environments/{id}` | Soft-delete |

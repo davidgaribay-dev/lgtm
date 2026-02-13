@@ -1,0 +1,71 @@
+---
+title: lgtm test-results
+description: Submit individual and bulk test results
+---
+
+## Commands
+
+### `lgtm test-results submit`
+
+Submit a single test result.
+
+```bash
+lgtm test-results submit --run <run-id> --case <case-id> --status passed
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--run <id>` | Test run ID (required) |
+| `--case <id>` | Test case ID (required) |
+| `-s, --status <status>` | Result: `passed`, `failed`, `blocked`, `skipped` (required) |
+| `--comment <text>` | Optional comment |
+| `--duration <ms>` | Duration in milliseconds |
+
+### `lgtm test-results bulk`
+
+Submit multiple results from a JSON file.
+
+```bash
+lgtm test-results bulk --run <run-id> --file results.json
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--run <id>` | Test run ID (required) |
+| `-f, --file <path>` | Path to JSON file with results (required) |
+
+**File format:**
+
+```json
+[
+  {
+    "testCaseId": "uuid-1",
+    "status": "passed",
+    "duration": 1200,
+    "comment": "All verified"
+  },
+  {
+    "testCaseId": "uuid-2",
+    "status": "failed",
+    "comment": "Button not visible"
+  }
+]
+```
+
+### Examples
+
+```bash
+# Mark a test as passed
+lgtm test-results submit --run abc-123 --case def-456 -s passed
+
+# Mark as failed with comment
+lgtm test-results submit --run abc-123 --case def-456 \
+  -s failed --comment "Login button missing"
+
+# Bulk submit from file
+lgtm test-results bulk --run abc-123 -f ./test-results.json
+```

@@ -1,0 +1,82 @@
+/*
+ * LGTM Docs — Custom styles layered on top of starlight-theme-black
+ *
+ * The theme provides the shadcn-inspired base (Geist fonts, neutral grays,
+ * GitHub code themes). We add brand-specific accent color and polish here.
+ */
+
+/* ── Brand accent: indigo ─────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --sl-color-accent-low: #1e1b4b;
+  --sl-color-accent: #818cf8;
+  --sl-color-accent-high: #e0e7ff;
+  --sl-color-text-accent: #a5b4fc;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #e0e7ff;
+  --sl-color-accent: #4f46e5;
+  --sl-color-accent-high: #1e1b4b;
+  --sl-color-text-accent: #4338ca;
+}
+
+/* ── Content width — slightly wider for API docs ──────────────────────── */
+:root {
+  --sl-content-width: 52rem;
+}
+
+/* ── Smooth scrolling ─────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Hero section tweaks ──────────────────────────────────────────────── */
+.hero {
+  padding-block: 4rem;
+}
+
+.hero .tagline {
+  max-width: 38rem;
+}
+
+/* ── Card grid polish ─────────────────────────────────────────────────── */
+.card {
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--sl-color-accent);
+  box-shadow: 0 0 0 1px var(--sl-color-accent);
+}
+
+/* ── Inline code in prose — subtle background ─────────────────────────── */
+:not(pre) > code {
+  border-radius: 0.25rem;
+  padding: 0.15em 0.35em;
+}
+
+/* ── Table styling ────────────────────────────────────────────────────── */
+table {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+th {
+  font-weight: 600;
+}
+
+/* ── Aside/callout border accent ──────────────────────────────────────── */
+.starlight-aside {
+  border-radius: 0.5rem;
+}
+
+/* ── Sidebar group labels — slightly bolder ───────────────────────────── */
+.sidebar-content summary {
+  font-weight: 600;
+}
+
+/* ── Smooth link transitions ──────────────────────────────────────────── */
+a {
+  transition: color 0.15s ease;
+}

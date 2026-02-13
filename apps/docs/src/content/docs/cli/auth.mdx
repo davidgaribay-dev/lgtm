@@ -1,0 +1,33 @@
+---
+title: lgtm auth
+description: Configure and verify CLI authentication
+---
+
+## Commands
+
+### `lgtm auth configure`
+
+Interactive setup wizard. Prompts for API URL, token, and optional default project, then saves to `~/.config/lgtm/config.json`.
+
+```bash
+lgtm auth configure
+```
+
+### `lgtm auth status`
+
+Show the current configuration sources and test the API connection.
+
+```bash
+lgtm auth status
+```
+
+Output shows:
+- Which config sources are active (flags, env vars, project file, user file)
+- The resolved API URL
+- Connection test result (success or error details)
+
+```bash
+lgtm auth status --json
+```
+
+Returns structured output with `apiUrl`, `configSource`, and `connected` fields.

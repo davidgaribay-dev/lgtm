@@ -1,0 +1,159 @@
+---
+title: Installation
+description: Deploy LGTM to Vercel or self-host with Docker
+---
+
+import { Tabs, TabItem, Steps } from "@astrojs/starlight/components";
+
+## Deployment options
+
+LGTM supports two deployment modes controlled by the `DEPLOYMENT_ENV` environment variable:
+
+| `DEPLOYMENT_ENV` | Database | Storage | Use case |
+|---|---|---|---|
+| `dev` | PostgreSQL via `node-postgres` (TCP) | S3-compatible (SeaweedFS) | Local / self-hosted |
+| unset / `prod` | NeonDB via `neon-http` (serverless) | Vercel Blob | Vercel production |
+
+<Tabs>
+<TabItem label="Vercel (Production)">
+
+<Steps>
+
+1. **Fork or clone the repository**
+
+2. **Create a Neon PostgreSQL database** at [neon.tech](https://neon.tech)
+
+3. **Create a Vercel project** and link it to your repository
+
+4. **Set environment variables** in the Vercel dashboard:
+
+   ```
+   DATABASE_URL=postgresql://...@neon.tech/lgtm
+   BETTER_AUTH_SECRET=<random-32+-char-string>
+   BETTER_AUTH_URL=https://your-app.vercel.app
+   BLOB_READ_WRITE_TOKEN=<vercel-blob-token>
+   ```
+
+   Optional:
+   ```
+   NEXT_PUBLIC_REGISTRATION_OPEN=false
+   RESEND_API_KEY=<resend-api-key>
+   EMAIL_FROM=LGTM <noreply@yourdomain.com>
+   ```
+
+5. **Push the database schema**
+
+   ```bash
+   pnpm db:push
+   ```
+
+6. **Deploy**
+
+   Vercel will build and deploy automatically on push.
+
+</Steps>
+
+</TabItem>
+<TabItem label="Docker (Self-Hosted)">
+
+<Steps>
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/lgtm-ai/lgtm.git
+   cd lgtm
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   pnpm install
+   ```
+
+3. **Start PostgreSQL and SeaweedFS**
+
+   ```bash
+   pnpm docker:up
+   ```
+
+   This starts:
+   - **PostgreSQL 18** on port `5432` (user/pass/db: `lgtm`)
+   - **SeaweedFS** S3 API on port `8334`, master on port `9334`
+   - **seaweedfs-init** — creates the `lgtm` bucket automatically
+
+4. **Configure environment variables**
+
+   ```bash
+   cp apps/web/.env.local.example apps/web/.env.local
+   ```
+
+   Set these values:
+
+   ```bash
+   DEPLOYMENT_ENV=dev
+   DATABASE_URL=postgresql://lgtm:lgtm@localhost:5432/lgtm
+   BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters-long
+   BETTER_AUTH_URL=http://localhost:3000
+   STORAGE_PROVIDER=s3
+   S3_ENDPOINT=http://localhost:8334
+   S3_REGION=us-east-1
+   S3_BUCKET=lgtm
+   S3_ACCESS_KEY_ID=lgtm_dev_access_key
+   S3_SECRET_ACCESS_KEY=lgtm_dev_secret_key
+   S3_PUBLIC_URL_BASE=http://localhost:3000/storage
+   ```
+
+5. **Push the schema to the database**
+
+   ```bash
+   pnpm db:push
+   ```
+
+6. **Start the dev server**
+
+   ```bash
+   pnpm dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+</Steps>
+
+### Docker commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm docker:up` | Start PostgreSQL + SeaweedFS |
+| `pnpm docker:down` | Stop services (data preserved) |
+| `pnpm docker:reset` | Stop services and delete all data |
+| `pnpm docker:logs` | Tail logs from services |
+
+### Storage proxy
+
+In dev mode, Next.js proxies `/storage/*` to SeaweedFS. Set `S3_PUBLIC_URL_BASE` to `http://localhost:3000/storage` so uploaded files are served through Next.js (same-origin), avoiding CORS issues.
+
+</TabItem>
+</Tabs>
+
+## Building from source
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build shared packages first
+pnpm build:packages
+
+# Build the web app
+pnpm build
+```
+
+## Database management
+
+| Command | Description |
+|---------|-------------|
+| `pnpm db:generate` | Generate migration SQL from schema changes |
+| `pnpm db:migrate` | Apply pending migrations |
+| `pnpm db:push` | Push schema directly (prototyping only) |
+| `pnpm db:studio` | Open Drizzle Studio (DB browser) |

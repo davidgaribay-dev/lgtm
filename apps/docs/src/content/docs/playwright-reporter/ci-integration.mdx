@@ -1,0 +1,95 @@
+---
+title: CI Integration
+description: Using the LGTM reporter in CI/CD pipelines
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+## GitHub Actions
+
+<Tabs>
+<TabItem label="Basic">
+
+```yaml
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npx playwright install --with-deps
+
+      - run: npx playwright test
+        env:
+          LGTM_API_URL: ${{ secrets.LGTM_API_URL }}
+          LGTM_API_TOKEN: ${{ secrets.LGTM_API_TOKEN }}
+          LGTM_PROJECT_KEY: ENG
+```
+
+</TabItem>
+<TabItem label="With environment and run name">
+
+```yaml
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npx playwright install --with-deps
+
+      - run: npx playwright test
+        env:
+          LGTM_API_URL: ${{ secrets.LGTM_API_URL }}
+          LGTM_API_TOKEN: ${{ secrets.LGTM_API_TOKEN }}
+          LGTM_PROJECT_KEY: ENG
+          LGTM_DEBUG: "true"
+```
+
+In your `playwright.config.ts`:
+
+```typescript
+["@lgtm/playwright-reporter", {
+  apiUrl: process.env.LGTM_API_URL,
+  apiToken: process.env.LGTM_API_TOKEN,
+  projectKey: process.env.LGTM_PROJECT_KEY,
+  environment: "staging",
+  runName: `CI #${process.env.GITHUB_RUN_NUMBER} - ${process.env.GITHUB_REF_NAME}`,
+  autoCreateTestCases: true,
+  autoCreateDefects: true,
+}]
+```
+
+</TabItem>
+</Tabs>
+
+## Required secrets
+
+Add these secrets to your CI/CD platform:
+
+| Secret | Value |
+|--------|-------|
+| `LGTM_API_URL` | Your LGTM instance URL |
+| `LGTM_API_TOKEN` | API token with `testCase`, `testRun`, `defect` permissions |
+
+## Tips
+
+- Use `LGTM_DEBUG=true` to enable verbose logging in CI for troubleshooting.
+- Set `runName` to include the CI run number or git ref for easy identification.
+- Use `autoCreateDefects: true` in CI to automatically file bugs for failures.
+- Use `uploadAttachments: true` to capture screenshots and traces for failed tests.
+- Scope your API token to the specific project to follow the principle of least privilege.

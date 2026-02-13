@@ -1,0 +1,99 @@
+---
+title: Reporter Lifecycle
+description: Detailed flow of the LGTM Playwright reporter
+---
+
+## Lifecycle stages
+
+### Constructor
+
+```
+new LgtmReporter(config)
+  → Validate required config (apiUrl, apiToken, projectKey)
+  → Create LgtmApiClient instance
+  → Initialize internal state (result queue, log buffers)
+```
+
+### `onBegin(config, suite)`
+
+Called once when the test suite starts:
+
+```
+1. Resolve project by key
+   → GET /api/teams → find matching project key
+
+2. Resolve environment (if configured)
+   → GET /api/environments?projectId=... → match by name
+
+3. Resolve cycle (if configured)
+   → GET /api/cycles?projectId=... → match by name
+
+4. Map Playwright tests → LGTM test cases
+   → Three-tier matching (tags → title → auto-create)
+
+5. Create test run
+   → POST /api/test-runs (name, projectId, testCaseIds)
+
+6. Set run status to in_progress
+   → PATCH /api/test-runs/:id { status: "in_progress" }
+```
+
+### `onTestEnd(test, result)`
+
+Called after each test completes:
+
+```
+1. Check for lgtm() metadata attachment
+   → Read application/lgtm.metadata+json attachment if present
+
+2. Map Playwright status → LGTM status
+   → passed→passed, failed→failed, timedOut→failed,
+     skipped→skipped, interrupted→blocked
+
+3. Queue result for batch submission
+   → Add to internal result queue
+
+4. Buffer stdout/stderr
+   → Store test output for log upload
+```
+
+### `onStdOut(chunk, test)` / `onStdErr(chunk, test)`
+
+Called during test execution for console output:
+
+```
+Buffer output per test for later log upload
+```
+
+### `onEnd(result)`
+
+Called once when all tests finish:
+
+```
+1. Flush results in batches of 50
+   → POST /api/test-runs/:id/results (per batch)
+
+2. Upload logs (if uploadLogs: true)
+   → Chunk to 60KB segments
+   → POST /api/test-runs/:id/logs (run-level)
+   → POST /api/test-results/:id/logs (result-level)
+
+3. Upload attachments (if uploadAttachments: true)
+   → Screenshots, videos, traces
+   → POST /api/attachments (per file)
+
+4. Create defects for failures (if autoCreateDefects: true)
+   → POST /api/defects (per failed test)
+
+5. Update run status
+   → PATCH /api/test-runs/:id { status: computed }
+
+6. Print summary
+   → Total, passed, failed, skipped counts
+```
+
+## Error handling
+
+- API errors during `onBegin` (e.g., project not found) abort the reporter gracefully — Playwright tests still run, but results are not uploaded.
+- Individual result submission failures are logged but don't stop other results from being submitted.
+- Log and attachment upload failures are logged but don't affect the run status.

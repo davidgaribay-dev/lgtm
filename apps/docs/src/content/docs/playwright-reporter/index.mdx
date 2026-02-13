@@ -1,0 +1,78 @@
+---
+title: Playwright Reporter
+description: Automatically upload Playwright test results to LGTM
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+The LGTM Playwright Reporter (`@lgtm/playwright-reporter`) automatically uploads test results from Playwright test runs to your LGTM instance.
+
+## Features
+
+- Automatic test case matching (by tag, title, or auto-creation)
+- Bulk result submission with batching
+- Log capture (stdout/stderr)
+- Attachment uploads (screenshots, videos, traces)
+- Automatic defect creation for failures
+- `lgtm()` helper for explicit test-to-case linking
+
+## Installation
+
+```bash
+npm install -D @lgtm/playwright-reporter
+```
+
+## Quick setup
+
+<Steps>
+
+1. **Create an API token** in LGTM (Settings > API Tokens) with `testCase`, `testRun`, and `defect` permissions.
+
+2. **Add the reporter** to your Playwright config:
+
+   ```typescript
+   // playwright.config.ts
+   import { defineConfig } from "@playwright/test";
+
+   export default defineConfig({
+     reporter: [
+       ["list"],
+       ["@lgtm/playwright-reporter", {
+         apiUrl: "https://lgtm.example.com",
+         apiToken: process.env.LGTM_API_TOKEN,
+         projectKey: "ENG",
+       }],
+     ],
+   });
+   ```
+
+3. **Run your tests:**
+
+   ```bash
+   LGTM_API_TOKEN=lgtm_v1_... npx playwright test
+   ```
+
+   The reporter will:
+   - Resolve your project by key
+   - Match tests to existing LGTM test cases
+   - Create a test run
+   - Submit results in batches
+   - Upload logs and attachments
+   - Print a summary
+
+</Steps>
+
+## How it works
+
+1. **On begin** — Resolves project/environment/cycle, maps tests to cases, creates a run
+2. **On test end** — Queues results and buffers logs for each completed test
+3. **On end** — Flushes results in batches of 50, uploads logs and attachments, creates defects if enabled, updates run status
+
+See [Lifecycle](/playwright-reporter/lifecycle/) for the full flow.
+
+## Next steps
+
+- [Configuration](/playwright-reporter/configuration/) — All 12 configuration options
+- [Test Linking](/playwright-reporter/test-linking/) — How to link Playwright tests to LGTM cases
+- [Status Mapping](/playwright-reporter/status-mapping/) — Playwright → LGTM status translation
+- [CI Integration](/playwright-reporter/ci-integration/) — GitHub Actions examples

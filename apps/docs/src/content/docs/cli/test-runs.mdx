@@ -1,0 +1,63 @@
+---
+title: lgtm test-runs
+description: List, get, and create test runs
+---
+
+## Commands
+
+### `lgtm test-runs list`
+
+List test runs for a project.
+
+```bash
+lgtm test-runs list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+| `--status <status>` | Filter: `pending`, `in_progress`, `passed`, `failed`, `blocked` |
+
+### `lgtm test-runs get <id>`
+
+Get test run details with results and metrics.
+
+```bash
+lgtm test-runs get <run-id>
+```
+
+**Output:** Run details, status, metrics (passed/failed/blocked/skipped/untested counts), and all results.
+
+### `lgtm test-runs create`
+
+Create a new test run.
+
+```bash
+lgtm test-runs create --project ENG --name "Sprint 5 Regression" --cases ENG-1,ENG-2,ENG-3
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+| `-n, --name <name>` | Run name (required) |
+| `--cases <keys>` | Comma-separated test case keys (required) |
+| `--environment <name>` | Environment name to link |
+| `--cycle <name>` | Cycle name to link |
+
+### Examples
+
+```bash
+# List failed runs
+lgtm test-runs list -p ENG --status failed
+
+# Get run details as JSON
+lgtm test-runs get abc-123 --json
+
+# Create a run with environment
+lgtm test-runs create -p ENG -n "Staging Smoke" \
+  --cases ENG-1,ENG-2 --environment staging
+```

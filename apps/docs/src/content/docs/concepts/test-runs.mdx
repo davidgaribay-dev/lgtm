@@ -1,0 +1,54 @@
+---
+title: Test Runs
+description: Execute test cases and track results
+---
+
+A **test run** is an execution instance — a collection of test cases to be run together, with results recorded per case.
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| **Name** | string | Descriptive name (e.g., "Sprint 5 Regression") |
+| **Status** | enum | `pending`, `in_progress`, `passed`, `failed`, `blocked` |
+| **Run Key** | string | Auto-generated `{TEAM_KEY}-TR-{number}` (e.g., `ENG-TR-5`) |
+| **Environment** | FK | Optional link to an [environment](/concepts/environments/) |
+| **Cycle** | FK | Optional link to a team [cycle](/concepts/cycles/) |
+| **Workspace Cycle** | FK | Optional link to a workspace cycle |
+| **Test Plan** | FK | Optional link to a [test plan](#test-plans) used to populate the run |
+
+## Status transitions
+
+```
+pending → in_progress → passed / failed / blocked
+```
+
+- **pending** — Run created but not started
+- **in_progress** — Execution underway
+- **passed** — All cases passed (auto-computed from results)
+- **failed** — At least one case failed
+- **blocked** — At least one case blocked, none failed
+
+## Test plans
+
+A **test plan** is a saved selection of test cases that can be loaded when creating a run. Plans have their own status lifecycle:
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Being prepared |
+| `active` | Ready for use |
+| `completed` | Finished |
+| `archived` | No longer active |
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/test-runs` | List test runs |
+| POST | `/api/test-runs` | Create a test run |
+| GET | `/api/test-runs/{id}` | Get run with metrics |
+| PATCH | `/api/test-runs/{id}` | Update status/metadata |
+| DELETE | `/api/test-runs/{id}` | Soft-delete |
+| POST | `/api/test-runs/{id}/results` | Bulk submit results |
+
+See the [API Reference](/api-reference/) for full details.

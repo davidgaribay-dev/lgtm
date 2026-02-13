@@ -1,0 +1,76 @@
+---
+editUrl: false
+next: false
+prev: false
+title: "LgtmApiError"
+---
+
+Defined in: [api-client/errors.ts:24](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/errors.ts#L24)
+
+## Extends
+
+- `Error`
+
+## Constructors
+
+### Constructor
+
+> **new LgtmApiError**(`message`, `statusCode`, `responseBody?`): `LgtmApiError`
+
+Defined in: [api-client/errors.ts:28](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/errors.ts#L28)
+
+#### Parameters
+
+##### message
+
+`string`
+
+##### statusCode
+
+`number`
+
+##### responseBody?
+
+`unknown`
+
+#### Returns
+
+`LgtmApiError`
+
+#### Overrides
+
+`Error.constructor`
+
+## Properties
+
+### responseBody
+
+> `readonly` **responseBody**: `unknown`
+
+Defined in: [api-client/errors.ts:26](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/errors.ts#L26)
+
+***
+
+### statusCode
+
+> `readonly` **statusCode**: `number`
+
+Defined in: [api-client/errors.ts:25](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/errors.ts#L25)
+
+## Methods
+
+### fromResponse()
+
+> `static` **fromResponse**(`response`): `Promise`\<`LgtmApiError`\>
+
+Defined in: [api-client/errors.ts:35](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/errors.ts#L35)
+
+#### Parameters
+
+##### response
+
+`Response`
+
+#### Returns
+
+`Promise`\<`LgtmApiError`\>

@@ -1,0 +1,93 @@
+---
+title: CLI Overview
+description: Command-line tool for AI agents and developers
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+The LGTM CLI (`@lgtm/cli`) provides terminal access to all LGTM features. It's designed for both AI coding agents and human developers.
+
+## Installation
+
+<Tabs>
+<TabItem label="npm">
+```bash
+npm install -g @lgtm/cli
+```
+</TabItem>
+<TabItem label="npx (no install)">
+```bash
+npx @lgtm/cli auth configure
+```
+</TabItem>
+</Tabs>
+
+## Quick start
+
+```bash
+# Set up authentication
+lgtm auth configure
+
+# List projects
+lgtm projects list
+
+# List test cases
+lgtm test-cases list --project ENG
+
+# Get a specific test case
+lgtm test-cases get ENG-42
+
+# Create a test run
+lgtm test-runs create --project ENG --name "Sprint 5" --cases ENG-1,ENG-2
+
+# Submit a result
+lgtm test-results submit --run <id> --case <id> --status passed
+
+# File a defect
+lgtm defects create --project ENG --title "Login broken" --severity critical
+```
+
+## Global options
+
+All commands accept these flags:
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON (machine-readable) |
+| `--verbose` | Enable debug logging |
+| `--api-url <url>` | LGTM API URL (overrides config/env) |
+| `--api-token <token>` | API token (overrides config/env) |
+| `--project <key>` | Default project key (overrides config/env) |
+
+## Output modes
+
+| Mode | When | Format |
+|------|------|--------|
+| **Human** | Default (TTY detected) | Colored tables via `cli-table3` + `chalk` |
+| **Machine** | `--json` flag | Structured JSON to stdout, errors to stderr |
+
+AI agents should always use `--json` for reliable parsing.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error |
+| `2` | Usage error (bad arguments) |
+| `3` | Authentication error (missing/invalid token, permission denied) |
+| `4` | Not found (project, test case, etc.) |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| [`auth`](/cli/auth/) | Configure and verify authentication |
+| [`projects`](/cli/projects/) | List accessible projects |
+| [`test-cases`](/cli/test-cases/) | List and get test cases |
+| [`test-runs`](/cli/test-runs/) | List, get, and create test runs |
+| [`test-results`](/cli/test-results/) | Submit test results |
+| [`defects`](/cli/defects/) | List, get, and create defects |
+| [`environments`](/cli/environments/) | List environments |
+| [`cycles`](/cli/cycles/) | List cycles |
+| [`shared-steps`](/cli/shared-steps/) | Manage shared steps |

@@ -1,0 +1,77 @@
+---
+title: LGTM Documentation
+description: Documentation for the LGTM test case management platform
+template: splash
+hero:
+  title: Test management for modern engineering teams
+  tagline: Organize test cases, execute test runs, track defects, and integrate with your CI/CD pipeline — all with first-class support for AI coding agents.
+  actions:
+    - text: Get Started
+      link: /getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: API Reference
+      link: /api-reference/
+      variant: minimal
+---
+
+import { Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <Card title="CLI Tool" icon="terminal">
+    Query test cases, submit results, and file defects from the command line. Built for AI coding agents and developers.
+
+    [Explore the CLI →](/cli/)
+  </Card>
+  <Card title="Playwright Reporter" icon="puzzle">
+    Automatically upload Playwright test results. Supports test case matching, auto-creation, and defect filing.
+
+    [Set up the reporter →](/playwright-reporter/)
+  </Card>
+  <Card title="REST API" icon="open-book">
+    Full REST API with Bearer token authentication. 60+ endpoints covering test cases, runs, results, defects, and more.
+
+    [Browse endpoints →](/api-reference/)
+  </Card>
+  <Card title="TypeScript SDK" icon="seti:typescript">
+    Typed API client for Node.js and browser environments. Shared types and constants for building integrations.
+
+    [View SDK reference →](/sdk-reference/)
+  </Card>
+</CardGrid>
+
+---
+
+## Quick install
+
+<Tabs>
+  <TabItem label="Playwright Reporter">
+    ```bash
+    npm install @lgtm/playwright-reporter
+    ```
+  </TabItem>
+  <TabItem label="CLI">
+    ```bash
+    npm install -g @lgtm/cli
+    lgtm auth login
+    ```
+  </TabItem>
+  <TabItem label="SDK">
+    ```bash
+    npm install @lgtm/shared
+    ```
+  </TabItem>
+</Tabs>
+
+## Core capabilities
+
+| Capability | Description |
+|---|---|
+| **Test case management** | Suites, sections, steps, shared steps, priorities, and tags |
+| **Test execution** | Runs with per-case and per-step results, status tracking, and log capture |
+| **Defect tracking** | Severity, priority, resolution workflow, and traceability to test cases |
+| **Team RBAC** | Workspaces with owner/admin/member/viewer roles and per-team permissions |
+| **Fine-grained tokens** | API tokens with resource-level scoping and optional project restrictions |
+| **CI/CD integration** | Playwright reporter + CLI for fully automated test workflows |
+| **File attachments** | Screenshots, videos, and documents on test cases, results, and defects |
+| **Threaded comments** | Discussions with @mentions, reactions, and resolve/unresolve |

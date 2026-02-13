@@ -1,0 +1,88 @@
+---
+title: lgtm shared-steps
+description: Manage reusable test step sequences
+---
+
+## Commands
+
+### `lgtm shared-steps list`
+
+List shared steps for a project.
+
+```bash
+lgtm shared-steps list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+| `--status <status>` | Filter: `active`, `draft`, `archived` |
+
+### `lgtm shared-steps get <id>`
+
+Get a shared step with its actions.
+
+```bash
+lgtm shared-steps get <id>
+```
+
+**Output:** Title, description, status, and all ordered actions with action/data/expected result.
+
+### `lgtm shared-steps create`
+
+Create a new shared step.
+
+```bash
+lgtm shared-steps create --project ENG --title "Login flow"
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key (required) |
+| `-t, --title <title>` | Shared step title (required) |
+
+### `lgtm shared-steps update`
+
+Update a shared step's fields.
+
+```bash
+lgtm shared-steps update <id> --title "New title" --status archived
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-t, --title <title>` | New title |
+| `-s, --status <status>` | New status: `active`, `draft`, `archived` |
+
+### `lgtm shared-steps delete`
+
+Delete a shared step (soft-delete).
+
+```bash
+lgtm shared-steps delete <id>
+```
+
+### Examples
+
+```bash
+# List active shared steps
+lgtm shared-steps list -p ENG --status active
+
+# Get step details as JSON
+lgtm shared-steps get abc-123 --json
+
+# Create a new shared step
+lgtm shared-steps create -p ENG -t "Login as admin"
+
+# Archive a shared step
+lgtm shared-steps update abc-123 -s archived
+
+# Delete a shared step
+lgtm shared-steps delete abc-123
+```

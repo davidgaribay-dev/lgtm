@@ -476,7 +476,7 @@ function SettingsHeader({
   }
 
   return (
-    <div className="border-b px-3 py-3">
+    <div className="px-3 py-3">
       <Link
         href={backLink}
         className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

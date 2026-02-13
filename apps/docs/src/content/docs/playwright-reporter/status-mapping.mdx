@@ -1,0 +1,32 @@
+---
+title: Status Mapping
+description: How Playwright statuses map to LGTM statuses
+---
+
+## Test result status mapping
+
+| Playwright Status | LGTM Status |
+|-------------------|-------------|
+| `passed` | `passed` |
+| `failed` | `failed` |
+| `timedOut` | `failed` |
+| `skipped` | `skipped` |
+| `interrupted` | `blocked` |
+
+## Run status mapping
+
+The overall run status is determined by the Playwright suite result:
+
+| Playwright Result | LGTM Run Status |
+|-------------------|-----------------|
+| `passed` | `passed` |
+| `failed` | `failed` |
+| `timedout` | `failed` |
+| `interrupted` | `blocked` |
+
+## Notes
+
+- **Timed out** tests are treated as failures in LGTM since they did not produce a passing result.
+- **Interrupted** tests (e.g., from Ctrl+C or CI timeout) are marked as `blocked` since they could not complete.
+- **Skipped** tests retain their skip status — they are not treated as failures.
+- The run status is set after all results are submitted, so it reflects the final aggregate state.

@@ -1,0 +1,614 @@
+---
+editUrl: false
+next: false
+prev: false
+title: "LgtmApiClient"
+---
+
+Defined in: [api-client/index.ts:38](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L38)
+
+## Constructors
+
+### Constructor
+
+> **new LgtmApiClient**(`options`): `LgtmApiClient`
+
+Defined in: [api-client/index.ts:42](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L42)
+
+#### Parameters
+
+##### options
+
+[`LgtmApiClientOptions`](../interfaces/LgtmApiClientOptions.html)
+
+#### Returns
+
+`LgtmApiClient`
+
+## Methods
+
+### appendResultLog()
+
+> **appendResultLog**(`resultId`, `data`): `Promise`\<[`TestRunLog`](../interfaces/TestRunLog.html)\>
+
+Defined in: [api-client/index.ts:224](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L224)
+
+#### Parameters
+
+##### resultId
+
+`string`
+
+##### data
+
+[`AppendLogRequest`](../interfaces/AppendLogRequest.html)
+
+#### Returns
+
+`Promise`\<[`TestRunLog`](../interfaces/TestRunLog.html)\>
+
+***
+
+### appendRunLog()
+
+> **appendRunLog**(`runId`, `data`): `Promise`\<[`TestRunLog`](../interfaces/TestRunLog.html)\>
+
+Defined in: [api-client/index.ts:216](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L216)
+
+#### Parameters
+
+##### runId
+
+`string`
+
+##### data
+
+[`AppendLogRequest`](../interfaces/AppendLogRequest.html)
+
+#### Returns
+
+`Promise`\<[`TestRunLog`](../interfaces/TestRunLog.html)\>
+
+***
+
+### createDefect()
+
+> **createDefect**(`data`): `Promise`\<[`Defect`](../interfaces/Defect.html)\>
+
+Defined in: [api-client/index.ts:251](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L251)
+
+#### Parameters
+
+##### data
+
+[`CreateDefectRequest`](../interfaces/CreateDefectRequest.html)
+
+#### Returns
+
+`Promise`\<[`Defect`](../interfaces/Defect.html)\>
+
+***
+
+### createSharedStep()
+
+> **createSharedStep**(`data`): `Promise`\<[`SharedStep`](../interfaces/SharedStep.html)\>
+
+Defined in: [api-client/index.ts:323](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L323)
+
+#### Parameters
+
+##### data
+
+[`CreateSharedStepRequest`](../interfaces/CreateSharedStepRequest.html)
+
+#### Returns
+
+`Promise`\<[`SharedStep`](../interfaces/SharedStep.html)\>
+
+***
+
+### createSharedStepAction()
+
+> **createSharedStepAction**(`sharedStepId`, `data`): `Promise`\<[`SharedStepAction`](../interfaces/SharedStepAction.html)\>
+
+Defined in: [api-client/index.ts:341](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L341)
+
+#### Parameters
+
+##### sharedStepId
+
+`string`
+
+##### data
+
+[`CreateSharedStepActionRequest`](../interfaces/CreateSharedStepActionRequest.html)
+
+#### Returns
+
+`Promise`\<[`SharedStepAction`](../interfaces/SharedStepAction.html)\>
+
+***
+
+### createTestCase()
+
+> **createTestCase**(`data`): `Promise`\<[`TestCase`](../interfaces/TestCase.html)\>
+
+Defined in: [api-client/index.ts:158](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L158)
+
+#### Parameters
+
+##### data
+
+[`CreateTestCaseRequest`](../interfaces/CreateTestCaseRequest.html)
+
+#### Returns
+
+`Promise`\<[`TestCase`](../interfaces/TestCase.html)\>
+
+***
+
+### createTestRun()
+
+> **createTestRun**(`data`): `Promise`\<[`CreateTestRunResponse`](../interfaces/CreateTestRunResponse.html)\>
+
+Defined in: [api-client/index.ts:188](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L188)
+
+#### Parameters
+
+##### data
+
+[`CreateTestRunRequest`](../interfaces/CreateTestRunRequest.html)
+
+#### Returns
+
+`Promise`\<[`CreateTestRunResponse`](../interfaces/CreateTestRunResponse.html)\>
+
+***
+
+### deleteAttachment()
+
+> **deleteAttachment**(`id`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [api-client/index.ts:300](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L300)
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### deleteSharedStep()
+
+> **deleteSharedStep**(`id`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [api-client/index.ts:334](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L334)
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### deleteSharedStepAction()
+
+> **deleteSharedStepAction**(`sharedStepId`, `actionId`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [api-client/index.ts:364](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L364)
+
+#### Parameters
+
+##### sharedStepId
+
+`string`
+
+##### actionId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### getAttachments()
+
+> **getAttachments**(`entityType`, `entityId`): `Promise`\<\{ `attachments`: [`Attachment`](../interfaces/Attachment.html)[]; \}\>
+
+Defined in: [api-client/index.ts:290](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L290)
+
+#### Parameters
+
+##### entityType
+
+`string`
+
+##### entityId
+
+`string`
+
+#### Returns
+
+`Promise`\<\{ `attachments`: [`Attachment`](../interfaces/Attachment.html)[]; \}\>
+
+***
+
+### getCycles()
+
+> **getCycles**(`projectId`): `Promise`\<[`Cycle`](../interfaces/Cycle.html)[]\>
+
+Defined in: [api-client/index.ts:266](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L266)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Cycle`](../interfaces/Cycle.html)[]\>
+
+***
+
+### getDefectByKey()
+
+> **getDefectByKey**(`defectKey`): `Promise`\<[`Defect`](../interfaces/Defect.html)\>
+
+Defined in: [api-client/index.ts:244](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L244)
+
+#### Parameters
+
+##### defectKey
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Defect`](../interfaces/Defect.html)\>
+
+***
+
+### getDefects()
+
+> **getDefects**(`projectId`): `Promise`\<[`Defect`](../interfaces/Defect.html)[]\>
+
+Defined in: [api-client/index.ts:237](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L237)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Defect`](../interfaces/Defect.html)[]\>
+
+***
+
+### getEnvironments()
+
+> **getEnvironments**(`projectId`): `Promise`\<[`Environment`](../interfaces/Environment.html)[]\>
+
+Defined in: [api-client/index.ts:257](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L257)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Environment`](../interfaces/Environment.html)[]\>
+
+***
+
+### getSharedStep()
+
+> **getSharedStep**(`id`): `Promise`\<[`SharedStepWithActions`](../interfaces/SharedStepWithActions.html)\>
+
+Defined in: [api-client/index.ts:316](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L316)
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`Promise`\<[`SharedStepWithActions`](../interfaces/SharedStepWithActions.html)\>
+
+***
+
+### getSharedSteps()
+
+> **getSharedSteps**(`projectId`): `Promise`\<[`SharedStep`](../interfaces/SharedStep.html)[]\>
+
+Defined in: [api-client/index.ts:309](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L309)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`SharedStep`](../interfaces/SharedStep.html)[]\>
+
+***
+
+### getTeams()
+
+> **getTeams**(): `Promise`\<[`Project`](../interfaces/Project.html)[]\>
+
+Defined in: [api-client/index.ts:145](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L145)
+
+#### Returns
+
+`Promise`\<[`Project`](../interfaces/Project.html)[]\>
+
+***
+
+### getTestCaseByKey()
+
+> **getTestCaseByKey**(`projectId`, `caseKey`): `Promise`\<[`TestCase`](../interfaces/TestCase.html) & `object`\>
+
+Defined in: [api-client/index.ts:162](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L162)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+##### caseKey
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TestCase`](../interfaces/TestCase.html) & `object`\>
+
+***
+
+### getTestCases()
+
+> **getTestCases**(`projectId`): `Promise`\<[`TestCase`](../interfaces/TestCase.html)[]\>
+
+Defined in: [api-client/index.ts:151](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L151)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TestCase`](../interfaces/TestCase.html)[]\>
+
+***
+
+### getTestRun()
+
+> **getTestRun**(`id`): `Promise`\<[`TestRunDetail`](../interfaces/TestRunDetail.html)\>
+
+Defined in: [api-client/index.ts:192](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L192)
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TestRunDetail`](../interfaces/TestRunDetail.html)\>
+
+***
+
+### getTestRuns()
+
+> **getTestRuns**(`projectId`): `Promise`\<[`TestRun`](../interfaces/TestRun.html)[]\>
+
+Defined in: [api-client/index.ts:181](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L181)
+
+#### Parameters
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TestRun`](../interfaces/TestRun.html)[]\>
+
+***
+
+### reorderSharedStepActions()
+
+> **reorderSharedStepActions**(`sharedStepId`, `actionIds`): `Promise`\<\{ `success`: `boolean`; \}\>
+
+Defined in: [api-client/index.ts:374](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L374)
+
+#### Parameters
+
+##### sharedStepId
+
+`string`
+
+##### actionIds
+
+`string`[]
+
+#### Returns
+
+`Promise`\<\{ `success`: `boolean`; \}\>
+
+***
+
+### submitResults()
+
+> **submitResults**(`runId`, `results`, `source?`): `Promise`\<[`BulkSubmitResultsResponse`](../interfaces/BulkSubmitResultsResponse.html)\>
+
+Defined in: [api-client/index.ts:202](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L202)
+
+#### Parameters
+
+##### runId
+
+`string`
+
+##### results
+
+[`BulkResultEntry`](../interfaces/BulkResultEntry.html)[]
+
+##### source?
+
+`"api"` | `"manual"`
+
+#### Returns
+
+`Promise`\<[`BulkSubmitResultsResponse`](../interfaces/BulkSubmitResultsResponse.html)\>
+
+***
+
+### updateSharedStep()
+
+> **updateSharedStep**(`id`, `data`): `Promise`\<[`SharedStep`](../interfaces/SharedStep.html)\>
+
+Defined in: [api-client/index.ts:327](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L327)
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### data
+
+[`UpdateSharedStepRequest`](../interfaces/UpdateSharedStepRequest.html)
+
+#### Returns
+
+`Promise`\<[`SharedStep`](../interfaces/SharedStep.html)\>
+
+***
+
+### updateSharedStepAction()
+
+> **updateSharedStepAction**(`sharedStepId`, `actionId`, `data`): `Promise`\<[`SharedStepAction`](../interfaces/SharedStepAction.html)\>
+
+Defined in: [api-client/index.ts:352](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L352)
+
+#### Parameters
+
+##### sharedStepId
+
+`string`
+
+##### actionId
+
+`string`
+
+##### data
+
+[`UpdateSharedStepActionRequest`](../interfaces/UpdateSharedStepActionRequest.html)
+
+#### Returns
+
+`Promise`\<[`SharedStepAction`](../interfaces/SharedStepAction.html)\>
+
+***
+
+### updateTestCase()
+
+> **updateTestCase**(`id`, `data`): `Promise`\<[`TestCase`](../interfaces/TestCase.html)\>
+
+Defined in: [api-client/index.ts:172](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L172)
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### data
+
+[`UpdateTestCaseRequest`](../interfaces/UpdateTestCaseRequest.html)
+
+#### Returns
+
+`Promise`\<[`TestCase`](../interfaces/TestCase.html)\>
+
+***
+
+### updateTestRun()
+
+> **updateTestRun**(`id`, `data`): `Promise`\<[`TestRun`](../interfaces/TestRun.html)\>
+
+Defined in: [api-client/index.ts:196](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L196)
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### data
+
+[`UpdateTestRunRequest`](../interfaces/UpdateTestRunRequest.html)
+
+#### Returns
+
+`Promise`\<[`TestRun`](../interfaces/TestRun.html)\>
+
+***
+
+### uploadAttachment()
+
+> **uploadAttachment**(`file`, `fileName`, `entityType`, `entityId`, `projectId`): `Promise`\<[`Attachment`](../interfaces/Attachment.html)\>
+
+Defined in: [api-client/index.ts:275](https://github.com/davidgaribay-dev/lgtm/blob/f332f3289acc247d2b2d3936ba626a3d4fa80495/packages/shared/src/api-client/index.ts#L275)
+
+#### Parameters
+
+##### file
+
+`Blob`
+
+##### fileName
+
+`string`
+
+##### entityType
+
+`string`
+
+##### entityId
+
+`string`
+
+##### projectId
+
+`string`
+
+#### Returns
+
+`Promise`\<[`Attachment`](../interfaces/Attachment.html)\>

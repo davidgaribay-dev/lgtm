@@ -1,0 +1,113 @@
+---
+title: Authentication
+description: API tokens, Bearer auth, and session-based authentication
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+LGTM supports two authentication methods:
+
+| Method | Use case | How |
+|--------|----------|-----|
+| **Session cookies** | Web UI | Automatic after login |
+| **API tokens** | CLI, reporter, integrations | `Authorization: Bearer <token>` header |
+
+## API tokens
+
+API tokens provide fine-grained programmatic access. They follow the same model as GitHub personal access tokens.
+
+### Token format
+
+```
+lgtm_v1_<48-random-chars>
+```
+
+- `lgtm_` prefix identifies tokens in logs and code
+- `v1_` version enables future format changes
+- 48 random characters (288 bits of entropy)
+- Tokens are **bcrypt-hashed** — never stored in plaintext
+- Shown **only once** at creation
+
+### Creating a token
+
+1. Go to **Settings > API Tokens** in the web UI
+2. Click **Create Token**
+3. Choose a name and optional expiration date
+4. Select permissions (resource:action pairs)
+5. Optionally scope to specific projects
+6. Copy the token — it won't be shown again
+
+### Using a token
+
+Include the token in the `Authorization` header:
+
+```bash
+curl -X GET "https://lgtm.example.com/api/teams" \
+  -H "Authorization: Bearer lgtm_v1_..."
+```
+
+Or configure the CLI:
+
+```bash
+lgtm auth configure
+# Enter your API URL and token when prompted
+```
+
+### Token permissions
+
+Tokens use resource:action pairs for fine-grained access control:
+
+| Resource | Actions |
+|----------|---------|
+| `testCase` | `create`, `read`, `update`, `delete` |
+| `testRun` | `create`, `read`, `update`, `delete` |
+| `defect` | `create`, `read`, `update`, `delete` |
+| `environment` | `create`, `read`, `update`, `delete` |
+| `cycle` | `create`, `read`, `update`, `delete` |
+| `sharedStep` | `create`, `read`, `update`, `delete` |
+| `attachment` | `create`, `read`, `delete` |
+
+<Aside type="caution">
+Tokens inherit a subset of the user's permissions. A token cannot grant more access than the user who created it.
+</Aside>
+
+### Token scoping
+
+Tokens can be scoped to specific projects. A project-scoped token can only access resources within those projects.
+
+### Security features
+
+- Bcrypt hashing (10 salt rounds)
+- One-time display at creation
+- Optional expiration dates
+- Revocation via status field
+- Organization and project scoping enforced
+- Activity logging (method, path, status code, IP address)
+
+## Session authentication
+
+The web UI uses session-based authentication via [Better Auth](https://www.better-auth.com/). Sessions are stored in the database with a 5-minute cookie cache to reduce round-trips.
+
+### Roles
+
+LGTM has two levels of role-based access control:
+
+**Organization roles:**
+
+| Role | Capabilities |
+|------|-------------|
+| **Owner** | Full control including organization deletion |
+| **Admin** | All actions except organization deletion |
+| **Member** | Create/edit test cases, execute runs |
+| **Viewer** | Read-only access |
+
+**Team roles:**
+
+| Role | Capabilities |
+|------|-------------|
+| **Team Owner** | Full team control (settings, members, delete) |
+| **Team Admin** | Manage content, environments, members |
+| **Team Member** | Create/edit test cases, execute runs |
+| **Team Viewer** | Read-only team access |
+
+Organization admins/owners automatically get team admin access to all teams without explicit membership.

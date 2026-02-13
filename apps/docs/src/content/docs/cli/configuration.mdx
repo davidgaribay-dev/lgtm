@@ -1,0 +1,66 @@
+---
+title: CLI Configuration
+description: Configuration sources, precedence, and file format
+---
+
+## Configuration precedence
+
+The CLI resolves settings in this order (highest to lowest priority):
+
+1. **CLI flags** — `--api-url`, `--api-token`, `--project`
+2. **Environment variables** — `LGTM_API_URL`, `LGTM_API_TOKEN`, `LGTM_PROJECT_KEY`
+3. **Project-local config** — `.lgtm.json` in the current working directory
+4. **User config** — `~/.config/lgtm/config.json` (or `$XDG_CONFIG_HOME/lgtm/config.json`)
+
+## Config file format
+
+Both `.lgtm.json` (project) and `config.json` (user) use the same format:
+
+```json
+{
+  "apiUrl": "https://lgtm.example.com",
+  "apiToken": "lgtm_v1_...",
+  "defaultProject": "ENG"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `apiUrl` | LGTM instance base URL |
+| `apiToken` | API token for authentication |
+| `defaultProject` | Default project key (used when `--project` is not specified) |
+
+## Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `LGTM_API_URL` | LGTM API base URL |
+| `LGTM_API_TOKEN` | API token |
+| `LGTM_PROJECT_KEY` | Default project key |
+
+These are shared with `@lgtm/playwright-reporter` for consistency.
+
+## Interactive setup
+
+Run `lgtm auth configure` for an interactive prompt that saves credentials to the user config file:
+
+```bash
+lgtm auth configure
+# ? LGTM API URL: https://lgtm.example.com
+# ? API Token: lgtm_v1_...
+# ? Default Project Key (optional): ENG
+# Configuration saved to ~/.config/lgtm/config.json
+```
+
+## Project-local config
+
+Add a `.lgtm.json` to your project root to set defaults for all team members:
+
+```json
+{
+  "apiUrl": "https://lgtm.example.com",
+  "defaultProject": "ENG"
+}
+```
+
+Team members only need to set their personal `apiToken` via environment variable or user config. The project-local file should **not** contain tokens — add `.lgtm.json` to your `.gitignore` if it does.

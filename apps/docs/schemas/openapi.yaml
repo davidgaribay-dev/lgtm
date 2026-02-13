@@ -1,0 +1,2584 @@
+openapi: 3.1.0
+info:
+  title: LGTM API
+  version: 1.0.0
+  description: |
+    REST API for the LGTM test case management platform.
+
+    All endpoints require a valid API token passed via the `Authorization: Bearer <token>` header.
+    Tokens are scoped to a user and optionally restricted to specific projects and permission sets.
+  contact:
+    name: LGTM
+  license:
+    name: MIT
+
+servers:
+  - url: https://app.lgtm.run
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Teams
+    description: Manage teams (projects)
+  - name: Test Cases
+    description: Create, read, update, and delete test cases
+  - name: Test Runs
+    description: Create and manage test runs
+  - name: Test Results
+    description: Update individual test results and step-level results
+  - name: Defects
+    description: Track defects linked to test runs and cases
+  - name: Environments
+    description: Manage test environments
+  - name: Cycles
+    description: Manage test cycles
+  - name: Shared Steps
+    description: Reusable shared step definitions and their actions
+  - name: Attachments
+    description: Upload and manage file attachments
+  - name: Logs
+    description: Append and retrieve execution logs for test runs and results
+  - name: API Tokens
+    description: Manage API tokens for programmatic access
+
+paths:
+  # ──────────────────────────────────────────────
+  # Teams
+  # ──────────────────────────────────────────────
+  /api/teams:
+    get:
+      operationId: listTeams
+      summary: List teams
+      description: Returns all teams (projects) accessible to the authenticated user.
+      tags: [Teams]
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createTeam
+      summary: Create a team
+      description: Creates a new team (project) within the specified organization.
+      tags: [Teams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, organizationId]
+              properties:
+                name:
+                  type: string
+                  description: Display name for the team
+                organizationId:
+                  type: string
+                  format: uuid
+                  description: Organization that owns this team
+                key:
+                  type: string
+                  description: Short key used in identifiers (e.g. TC-1). Auto-generated if omitted.
+                description:
+                  type: [string, "null"]
+                  description: Optional description
+      responses:
+        "200":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/teams/{id}:
+    patch:
+      operationId: updateTeam
+      summary: Update a team
+      description: Updates the name or description of an existing team.
+      tags: [Teams]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: [string, "null"]
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Test Cases
+  # ──────────────────────────────────────────────
+  /api/test-cases:
+    post:
+      operationId: createTestCase
+      summary: Create a test case
+      description: Creates a new test case in the specified project.
+      tags: [Test Cases]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTestCaseRequest"
+      responses:
+        "200":
+          description: Created test case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/test-cases/{id}:
+    patch:
+      operationId: updateTestCase
+      summary: Update a test case
+      description: Partially updates an existing test case.
+      tags: [Test Cases]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTestCaseRequest"
+      responses:
+        "200":
+          description: Updated test case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteTestCase
+      summary: Delete a test case
+      description: Soft-deletes a test case.
+      tags: [Test Cases]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-cases/by-key:
+    get:
+      operationId: getTestCaseByKey
+      summary: Get a test case by key
+      description: Retrieves a test case by its project-scoped key (e.g. `TC-42`), including its steps.
+      tags: [Test Cases]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+        - name: caseKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Case key (e.g. TC-42)
+      responses:
+        "200":
+          description: Test case with steps
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TestCase"
+                  - type: object
+                    properties:
+                      steps:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TestStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-cases/{id}/steps:
+    get:
+      operationId: listTestSteps
+      summary: List test steps
+      description: Returns all steps for the specified test case, ordered by step order.
+      tags: [Test Cases]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: List of steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    post:
+      operationId: createTestStep
+      summary: Create a test step
+      description: Appends a new step to the specified test case.
+      tags: [Test Cases]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  description: The action to perform
+                expectedResult:
+                  type: [string, "null"]
+                  description: Expected outcome
+                data:
+                  type: [string, "null"]
+                  description: Test data for this step
+      responses:
+        "200":
+          description: Created step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-cases/{id}/clone:
+    post:
+      operationId: cloneTestCase
+      summary: Clone a test case
+      description: Creates a deep copy of the test case, including all steps.
+      tags: [Test Cases]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Cloned test case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Test Runs
+  # ──────────────────────────────────────────────
+  /api/test-runs:
+    get:
+      operationId: listTestRuns
+      summary: List test runs
+      description: Returns all test runs for the specified project, with aggregated metrics.
+      tags: [Test Runs]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: List of test runs with metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestRunWithMetrics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createTestRun
+      summary: Create a test run
+      description: Creates a new test run with the specified test cases. A test result is created for each case.
+      tags: [Test Runs]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTestRunRequest"
+      responses:
+        "200":
+          description: Created test run with result IDs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateTestRunResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/test-runs/{id}:
+    get:
+      operationId: getTestRun
+      summary: Get test run detail
+      description: Returns the test run with its results and associated test case data.
+      tags: [Test Runs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Test run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRunDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      operationId: updateTestRun
+      summary: Update a test run
+      description: Updates test run properties such as name, description, or status.
+      tags: [Test Runs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTestRunRequest"
+      responses:
+        "200":
+          description: Updated test run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteTestRun
+      summary: Delete a test run
+      description: Soft-deletes a test run.
+      tags: [Test Runs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-runs/{id}/results:
+    post:
+      operationId: bulkSubmitResults
+      summary: Bulk submit test results
+      description: |
+        Submits results for multiple test cases in a single request.
+        Each entry maps a test case ID to a status and optional metadata.
+      tags: [Test Runs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkSubmitResultsRequest"
+      responses:
+        "200":
+          description: Bulk submit response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkSubmitResultsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Test Results
+  # ──────────────────────────────────────────────
+  /api/test-results/{id}:
+    patch:
+      operationId: updateTestResult
+      summary: Update a test result
+      description: Updates an individual test result (status, comment, duration, etc.).
+      tags: [Test Results]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTestResultRequest"
+      responses:
+        "200":
+          description: Updated test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-results/{id}/steps:
+    get:
+      operationId: getStepResults
+      summary: Get step results
+      description: Returns per-step results for the specified test result.
+      tags: [Test Results]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: List of step results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestStepResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: bulkUpsertStepResults
+      summary: Bulk upsert step results
+      description: Creates or updates step-level results for the specified test result.
+      tags: [Test Results]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkUpsertStepResultsRequest"
+      responses:
+        "200":
+          description: Number of rows updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                    description: Number of step results upserted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Defects
+  # ──────────────────────────────────────────────
+  /api/defects:
+    get:
+      operationId: listDefects
+      summary: List defects
+      description: Returns all defects for the specified project.
+      tags: [Defects]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: List of defects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Defect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createDefect
+      summary: Create a defect
+      description: Creates a new defect in the specified project.
+      tags: [Defects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDefectRequest"
+      responses:
+        "200":
+          description: Created defect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/defects/{id}:
+    get:
+      operationId: getDefect
+      summary: Get a defect
+      description: Returns a single defect by ID.
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Defect detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      operationId: updateDefect
+      summary: Update a defect
+      description: Partially updates an existing defect.
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDefectRequest"
+      responses:
+        "200":
+          description: Updated defect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteDefect
+      summary: Delete a defect
+      description: Soft-deletes a defect.
+      tags: [Defects]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/defects/by-key:
+    get:
+      operationId: getDefectByKey
+      summary: Get a defect by key
+      description: Retrieves a defect by its project-scoped key (e.g. `BUG-7`).
+      tags: [Defects]
+      parameters:
+        - name: defectKey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Defect key (e.g. BUG-7)
+      responses:
+        "200":
+          description: Defect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Defect"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Environments
+  # ──────────────────────────────────────────────
+  /api/environments:
+    get:
+      operationId: listEnvironments
+      summary: List environments
+      description: Returns all environments for the specified project.
+      tags: [Environments]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: List of environments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Environment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createEnvironment
+      summary: Create an environment
+      description: Creates a new environment in the specified project.
+      tags: [Environments]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEnvironmentRequest"
+      responses:
+        "200":
+          description: Created environment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Environment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ──────────────────────────────────────────────
+  # Cycles
+  # ──────────────────────────────────────────────
+  /api/cycles:
+    get:
+      operationId: listCycles
+      summary: List cycles
+      description: Returns all cycles for the specified project.
+      tags: [Cycles]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: List of cycles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cycle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createCycle
+      summary: Create a cycle
+      description: Creates a new test cycle in the specified project.
+      tags: [Cycles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCycleRequest"
+      responses:
+        "200":
+          description: Created cycle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cycle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/cycles/{id}:
+    put:
+      operationId: updateCycle
+      summary: Update a cycle
+      description: Updates an existing cycle.
+      tags: [Cycles]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCycleRequest"
+      responses:
+        "200":
+          description: Updated cycle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cycle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteCycle
+      summary: Delete a cycle
+      description: Soft-deletes a cycle.
+      tags: [Cycles]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Shared Steps
+  # ──────────────────────────────────────────────
+  /api/shared-steps:
+    get:
+      operationId: listSharedSteps
+      summary: List shared steps
+      description: Returns all shared steps for the specified project.
+      tags: [Shared Steps]
+      parameters:
+        - name: projectId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Project ID
+      responses:
+        "200":
+          description: List of shared steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SharedStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createSharedStep
+      summary: Create a shared step
+      description: Creates a new shared step definition in the specified project.
+      tags: [Shared Steps]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSharedStepRequest"
+      responses:
+        "200":
+          description: Created shared step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/shared-steps/{id}:
+    get:
+      operationId: getSharedStep
+      summary: Get a shared step with actions
+      description: Returns the shared step and all its actions.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Shared step with actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedStepWithActions"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateSharedStep
+      summary: Update a shared step
+      description: Updates the shared step metadata (title, description, status).
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSharedStepRequest"
+      responses:
+        "200":
+          description: Updated shared step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedStep"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteSharedStep
+      summary: Delete a shared step
+      description: Soft-deletes a shared step and all its actions.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/shared-steps/{id}/actions:
+    post:
+      operationId: createSharedStepAction
+      summary: Create a shared step action
+      description: Appends a new action to the shared step.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSharedStepActionRequest"
+      responses:
+        "200":
+          description: Created action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedStepAction"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/shared-steps/{id}/actions/{actionId}:
+    put:
+      operationId: updateSharedStepAction
+      summary: Update a shared step action
+      description: Updates an individual action within a shared step.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Action ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSharedStepActionRequest"
+      responses:
+        "200":
+          description: Updated action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedStepAction"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteSharedStepAction
+      summary: Delete a shared step action
+      description: Removes an action from the shared step.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - name: actionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Action ID
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/shared-steps/{id}/actions/reorder:
+    put:
+      operationId: reorderSharedStepActions
+      summary: Reorder shared step actions
+      description: Sets the display order for all actions in a shared step.
+      tags: [Shared Steps]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderSharedStepActionsRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Attachments
+  # ──────────────────────────────────────────────
+  /api/attachments:
+    get:
+      operationId: listAttachments
+      summary: List attachments
+      description: Returns all attachments for the specified entity.
+      tags: [Attachments]
+      parameters:
+        - name: entityType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/AttachmentEntityType"
+          description: Type of entity the attachments belong to
+        - name: entityId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Entity ID
+      responses:
+        "200":
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attachments:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Attachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: uploadAttachment
+      summary: Upload an attachment
+      description: Uploads a file and attaches it to the specified entity.
+      tags: [Attachments]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, entityType, entityId, projectId]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                entityType:
+                  $ref: "#/components/schemas/AttachmentEntityType"
+                entityId:
+                  type: string
+                  format: uuid
+                  description: ID of the entity to attach the file to
+                projectId:
+                  type: string
+                  format: uuid
+                  description: Project ID (used for authorization)
+      responses:
+        "200":
+          description: Uploaded attachment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attachment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/attachments/{id}:
+    delete:
+      operationId: deleteAttachment
+      summary: Delete an attachment
+      description: Deletes an attachment and removes the file from storage.
+      tags: [Attachments]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # Logs
+  # ──────────────────────────────────────────────
+  /api/test-runs/{id}/logs:
+    post:
+      operationId: appendTestRunLog
+      summary: Append a test run log
+      description: Appends log content to the specified test run. Logs are chunked for efficient storage.
+      tags: [Logs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppendLogRequest"
+      responses:
+        "200":
+          description: Created log entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRunLog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    get:
+      operationId: getTestRunLogs
+      summary: Get test run logs
+      description: Returns all log chunks for the specified test run, ordered by chunk index.
+      tags: [Logs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: List of log chunks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestRunLog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/test-results/{id}/logs:
+    post:
+      operationId: appendTestResultLog
+      summary: Append a test result log
+      description: Appends log content to the specified test result.
+      tags: [Logs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppendLogRequest"
+      responses:
+        "200":
+          description: Created log entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRunLog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    get:
+      operationId: getTestResultLogs
+      summary: Get test result logs
+      description: Returns all log chunks for the specified test result, ordered by chunk index.
+      tags: [Logs]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: List of log chunks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestRunLog"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ──────────────────────────────────────────────
+  # API Tokens
+  # ──────────────────────────────────────────────
+  /api/tokens:
+    get:
+      operationId: listTokens
+      summary: List API tokens
+      description: Returns all API tokens belonging to the authenticated user.
+      tags: [API Tokens]
+      responses:
+        "200":
+          description: List of tokens (secrets are masked)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TokenMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createToken
+      summary: Create an API token
+      description: |
+        Creates a new API token. The full token value is returned only once in the response.
+        Store it securely — it cannot be retrieved again.
+      tags: [API Tokens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTokenRequest"
+      responses:
+        "200":
+          description: Created token (includes the plaintext token value)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/TokenMetadata"
+                  - type: object
+                    required: [token]
+                    properties:
+                      token:
+                        type: string
+                        description: The plaintext API token. Only returned at creation time.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/tokens/{id}:
+    patch:
+      operationId: updateToken
+      summary: Update an API token
+      description: Updates the display name of an existing token.
+      tags: [API Tokens]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: New display name
+      responses:
+        "200":
+          description: Updated token metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: revokeToken
+      summary: Revoke an API token
+      description: Permanently revokes an API token. This action cannot be undone.
+      tags: [API Tokens]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          $ref: "#/components/responses/Success"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+# ════════════════════════════════════════════════
+# Components
+# ════════════════════════════════════════════════
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Token
+      description: |
+        Pass your LGTM API token in the `Authorization` header:
+        ```
+        Authorization: Bearer lgtm_xxxxxxxxxxxx
+        ```
+
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Resource ID
+
+  responses:
+    Success:
+      description: Operation succeeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                const: true
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Unauthorized
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Not found
+
+  schemas:
+    # ── Enums ──────────────────────────────────
+    TestCasePriority:
+      type: string
+      enum: [low, medium, high, critical]
+      description: Priority level for a test case
+
+    TestCaseType:
+      type: string
+      enum:
+        - functional
+        - smoke
+        - regression
+        - security
+        - usability
+        - performance
+        - acceptance
+        - compatibility
+        - integration
+        - exploratory
+        - other
+      description: Category of test case
+
+    TestCaseSeverity:
+      type: string
+      enum: [not_set, blocker, critical, major, normal, minor, trivial]
+      description: Severity rating for a test case
+
+    TestCaseAutomationStatus:
+      type: string
+      enum: [not_automated, automated, to_be_automated]
+      description: Automation status of a test case
+
+    TestCaseStatus:
+      type: string
+      enum: [draft, active, deprecated]
+      description: Lifecycle status of a test case
+
+    TestCaseBehavior:
+      type: string
+      enum: [not_set, positive, negative, destructive]
+      description: Behavioral classification of a test case
+
+    TestCaseLayer:
+      type: string
+      enum: [not_set, e2e, api, unit]
+      description: Testing layer for a test case
+
+    TestRunStatus:
+      type: string
+      enum: [pending, in_progress, passed, failed, blocked]
+      description: Overall status of a test run
+
+    TestResultStatus:
+      type: string
+      enum: [untested, passed, failed, blocked, skipped]
+      description: Execution result status
+
+    DefectStatus:
+      type: string
+      enum: [open, in_progress, fixed, verified, closed, reopened, deferred, rejected, duplicate]
+      description: Defect workflow status
+
+    DefectResolution:
+      type: string
+      enum: [fixed, wont_fix, duplicate, cannot_reproduce, by_design, deferred]
+      description: How a defect was resolved
+
+    DefectSeverity:
+      type: string
+      enum: [normal, blocker, critical, major, minor, trivial]
+      description: Defect severity
+
+    DefectPriority:
+      type: string
+      enum: [low, medium, high, critical]
+      description: Defect priority
+
+    DefectType:
+      type: string
+      enum: [functional, ui, performance, security, crash, data, other]
+      description: Category of defect
+
+    EnvironmentType:
+      type: string
+      enum: [development, staging, qa, production, custom]
+      description: Type of environment
+
+    CycleStatus:
+      type: string
+      enum: [planned, active, completed]
+      description: Cycle lifecycle status
+
+    SharedStepStatus:
+      type: string
+      enum: [active, draft, archived]
+      description: Shared step status
+
+    AttachmentEntityType:
+      type: string
+      enum: [test_case, test_result, defect, test_run, comment]
+      description: Type of entity an attachment belongs to
+
+    # ── Mixins ─────────────────────────────────
+    AuditFields:
+      type: object
+      description: Standard audit metadata present on all primary resources
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the resource was created
+        createdBy:
+          type: string
+          description: User ID who created the resource
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the last update
+        updatedBy:
+          type: string
+          description: User ID who last updated the resource
+        deletedAt:
+          type: [string, "null"]
+          format: date-time
+          description: Soft-delete timestamp, null if active
+        deletedBy:
+          type: [string, "null"]
+          description: User ID who soft-deleted the resource
+
+    # ── Resources ──────────────────────────────
+    Project:
+      type: object
+      description: A team (project) containing test cases, runs, and defects
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required: [id, name, key, organizationId, status, displayOrder, nextTestCaseNumber, nextRunNumber, nextDefectNumber]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            key:
+              type: string
+              description: Short key used in identifiers (e.g. PRJ)
+            description:
+              type: [string, "null"]
+            organizationId:
+              type: string
+              format: uuid
+            status:
+              type: string
+            displayOrder:
+              type: integer
+            nextTestCaseNumber:
+              type: integer
+              description: Next auto-increment number for test cases
+            nextRunNumber:
+              type: integer
+              description: Next auto-increment number for test runs
+            nextDefectNumber:
+              type: integer
+              description: Next auto-increment number for defects
+
+    TestCase:
+      type: object
+      description: A test case definition
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required:
+            - id
+            - title
+            - projectId
+            - type
+            - priority
+            - severity
+            - automationStatus
+            - status
+            - behavior
+            - layer
+            - isFlaky
+            - caseNumber
+            - caseKey
+            - displayOrder
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            description:
+              type: [string, "null"]
+            preconditions:
+              type: [string, "null"]
+            postconditions:
+              type: [string, "null"]
+            projectId:
+              type: string
+              format: uuid
+            sectionId:
+              type: [string, "null"]
+              format: uuid
+            suiteId:
+              type: [string, "null"]
+              format: uuid
+            type:
+              $ref: "#/components/schemas/TestCaseType"
+            priority:
+              $ref: "#/components/schemas/TestCasePriority"
+            severity:
+              $ref: "#/components/schemas/TestCaseSeverity"
+            automationStatus:
+              $ref: "#/components/schemas/TestCaseAutomationStatus"
+            status:
+              $ref: "#/components/schemas/TestCaseStatus"
+            behavior:
+              $ref: "#/components/schemas/TestCaseBehavior"
+            layer:
+              $ref: "#/components/schemas/TestCaseLayer"
+            isFlaky:
+              type: boolean
+              description: Whether this test is known to be flaky
+            caseNumber:
+              type: integer
+              description: Auto-increment number within the project
+            caseKey:
+              type: string
+              description: Human-readable key (e.g. TC-42)
+            assigneeId:
+              type: [string, "null"]
+              format: uuid
+            displayOrder:
+              type: integer
+            cycleId:
+              type: [string, "null"]
+              format: uuid
+            workspaceCycleId:
+              type: [string, "null"]
+              format: uuid
+
+    CreateTestCaseRequest:
+      type: object
+      description: Request body for creating a test case
+      required: [title, projectId]
+      properties:
+        title:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        sectionId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        preconditions:
+          type: string
+        postconditions:
+          type: string
+        priority:
+          $ref: "#/components/schemas/TestCasePriority"
+        type:
+          $ref: "#/components/schemas/TestCaseType"
+        severity:
+          $ref: "#/components/schemas/TestCaseSeverity"
+        automationStatus:
+          $ref: "#/components/schemas/TestCaseAutomationStatus"
+        status:
+          $ref: "#/components/schemas/TestCaseStatus"
+        behavior:
+          $ref: "#/components/schemas/TestCaseBehavior"
+        layer:
+          $ref: "#/components/schemas/TestCaseLayer"
+        isFlaky:
+          type: boolean
+        assigneeId:
+          type: string
+          format: uuid
+
+    UpdateTestCaseRequest:
+      type: object
+      description: Request body for partially updating a test case. All fields are optional.
+      properties:
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        preconditions:
+          type: [string, "null"]
+        postconditions:
+          type: [string, "null"]
+        sectionId:
+          type: [string, "null"]
+          format: uuid
+        priority:
+          $ref: "#/components/schemas/TestCasePriority"
+        type:
+          $ref: "#/components/schemas/TestCaseType"
+        severity:
+          $ref: "#/components/schemas/TestCaseSeverity"
+        automationStatus:
+          $ref: "#/components/schemas/TestCaseAutomationStatus"
+        status:
+          $ref: "#/components/schemas/TestCaseStatus"
+        behavior:
+          $ref: "#/components/schemas/TestCaseBehavior"
+        layer:
+          $ref: "#/components/schemas/TestCaseLayer"
+        isFlaky:
+          type: boolean
+        assigneeId:
+          type: [string, "null"]
+          format: uuid
+        cycleId:
+          type: [string, "null"]
+          format: uuid
+        workspaceCycleId:
+          type: [string, "null"]
+          format: uuid
+
+    TestStep:
+      type: object
+      description: A single step within a test case
+      required: [id, testCaseId, stepOrder, action]
+      properties:
+        id:
+          type: string
+          format: uuid
+        testCaseId:
+          type: string
+          format: uuid
+        stepOrder:
+          type: integer
+          description: 1-based ordering
+        action:
+          type: string
+          description: The action to perform
+        data:
+          type: [string, "null"]
+          description: Test data for this step
+        expectedResult:
+          type: [string, "null"]
+          description: Expected outcome after performing the action
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TestRun:
+      type: object
+      description: A test run that groups test results for a set of test cases
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required: [id, name, runNumber, runKey, projectId, status]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            runNumber:
+              type: integer
+              description: Auto-increment number within the project
+            runKey:
+              type: string
+              description: Human-readable key (e.g. RUN-5)
+            description:
+              type: [string, "null"]
+            projectId:
+              type: string
+              format: uuid
+            testPlanId:
+              type: [string, "null"]
+              format: uuid
+            status:
+              $ref: "#/components/schemas/TestRunStatus"
+            environment:
+              type: [string, "null"]
+              description: Free-text environment name (legacy)
+            environmentId:
+              type: [string, "null"]
+              format: uuid
+              description: Reference to an Environment resource
+            cycleId:
+              type: [string, "null"]
+              format: uuid
+            workspaceCycleId:
+              type: [string, "null"]
+              format: uuid
+            startedAt:
+              type: [string, "null"]
+              format: date-time
+            completedAt:
+              type: [string, "null"]
+              format: date-time
+            executedBy:
+              type: [string, "null"]
+              description: User ID who executed the run
+
+    TestRunWithMetrics:
+      type: object
+      description: A test run augmented with aggregated result counts
+      allOf:
+        - $ref: "#/components/schemas/TestRun"
+        - type: object
+          properties:
+            totalCount:
+              type: integer
+              description: Total number of test results
+            passedCount:
+              type: integer
+            failedCount:
+              type: integer
+            blockedCount:
+              type: integer
+            skippedCount:
+              type: integer
+            untestedCount:
+              type: integer
+
+    TestRunDetail:
+      type: object
+      description: Full test run with embedded results and test case data
+      allOf:
+        - $ref: "#/components/schemas/TestRun"
+        - type: object
+          properties:
+            results:
+              type: array
+              description: All test results in this run
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/TestResult"
+                  - type: object
+                    properties:
+                      testCase:
+                        $ref: "#/components/schemas/TestCase"
+
+    CreateTestRunRequest:
+      type: object
+      description: Request body for creating a test run
+      required: [name, projectId, testCaseIds]
+      properties:
+        name:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        testCaseIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of test cases to include in the run
+        description:
+          type: string
+        environmentId:
+          type: string
+          format: uuid
+        cycleId:
+          type: string
+          format: uuid
+        workspaceCycleId:
+          type: string
+          format: uuid
+
+    CreateTestRunResponse:
+      type: object
+      description: Response after creating a test run, includes the run and the created result IDs
+      allOf:
+        - $ref: "#/components/schemas/TestRun"
+        - type: object
+          properties:
+            resultIds:
+              type: array
+              items:
+                type: string
+                format: uuid
+              description: IDs of the TestResult records created for each test case
+
+    UpdateTestRunRequest:
+      type: object
+      description: Request body for updating a test run
+      properties:
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/TestRunStatus"
+
+    TestResult:
+      type: object
+      description: The result of executing a single test case within a test run
+      required: [id, testRunId, testCaseId, status, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        testRunId:
+          type: string
+          format: uuid
+        testCaseId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/TestResultStatus"
+        source:
+          type: string
+          enum: [manual, api]
+          description: Whether the result was submitted manually or programmatically
+        executedBy:
+          type: [string, "null"]
+          description: User ID who executed the test
+        executedAt:
+          type: [string, "null"]
+          format: date-time
+        duration:
+          type: [number, "null"]
+          description: Execution duration in milliseconds
+        comment:
+          type: [string, "null"]
+          description: Free-text note about the result
+        defectCycleId:
+          type: [string, "null"]
+          format: uuid
+        defectWorkspaceCycleId:
+          type: [string, "null"]
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateTestResultRequest:
+      type: object
+      description: Request body for updating an individual test result
+      properties:
+        status:
+          $ref: "#/components/schemas/TestResultStatus"
+        comment:
+          type: [string, "null"]
+        duration:
+          type: [number, "null"]
+        executedBy:
+          type: [string, "null"]
+        executedAt:
+          type: [string, "null"]
+          format: date-time
+
+    TestStepResult:
+      type: object
+      description: Per-step execution result within a test result
+      required: [id, testResultId, testStepId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        testResultId:
+          type: string
+          format: uuid
+        testStepId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/TestResultStatus"
+        actualResult:
+          type: [string, "null"]
+          description: Actual outcome observed
+        comment:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BulkUpsertStepResultsRequest:
+      type: object
+      description: Request body for bulk upserting step-level results
+      required: [stepResults]
+      properties:
+        stepResults:
+          type: array
+          items:
+            type: object
+            required: [testStepId, status]
+            properties:
+              testStepId:
+                type: string
+                format: uuid
+              status:
+                $ref: "#/components/schemas/TestResultStatus"
+              actualResult:
+                type: [string, "null"]
+              comment:
+                type: [string, "null"]
+
+    BulkResultEntry:
+      type: object
+      description: A single entry in a bulk result submission
+      required: [testCaseId, status]
+      properties:
+        testCaseId:
+          type: string
+          format: uuid
+          description: ID of the test case to record a result for
+        status:
+          $ref: "#/components/schemas/TestResultStatus"
+        comment:
+          type: string
+          description: Optional note
+        duration:
+          type: number
+          description: Execution duration in milliseconds
+        executedBy:
+          type: string
+          description: User ID who executed the test
+        executedAt:
+          type: string
+          format: date-time
+
+    BulkSubmitResultsRequest:
+      type: object
+      description: Request body for submitting multiple test results at once
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkResultEntry"
+        source:
+          type: string
+          enum: [manual, api]
+          default: api
+          description: Source of the results
+
+    BulkSubmitResultsResponse:
+      type: object
+      description: Response from a bulk result submission
+      properties:
+        updated:
+          type: integer
+          description: Number of results updated
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestResult"
+          description: The updated test result records
+
+    Defect:
+      type: object
+      description: A defect (bug) linked to test execution
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required: [id, title, defectNumber, defectKey, projectId, severity, priority, defectType, status]
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            description:
+              type: [string, "null"]
+            defectNumber:
+              type: integer
+              description: Auto-increment number within the project
+            defectKey:
+              type: string
+              description: Human-readable key (e.g. BUG-7)
+            projectId:
+              type: string
+              format: uuid
+            severity:
+              $ref: "#/components/schemas/DefectSeverity"
+            priority:
+              $ref: "#/components/schemas/DefectPriority"
+            defectType:
+              $ref: "#/components/schemas/DefectType"
+            status:
+              $ref: "#/components/schemas/DefectStatus"
+            resolution:
+              oneOf:
+                - $ref: "#/components/schemas/DefectResolution"
+                - type: "null"
+              description: How the defect was resolved (null if unresolved)
+            assigneeId:
+              type: [string, "null"]
+              format: uuid
+            stepsToReproduce:
+              type: [string, "null"]
+            expectedResult:
+              type: [string, "null"]
+            actualResult:
+              type: [string, "null"]
+            externalUrl:
+              type: [string, "null"]
+              format: uri
+              description: Link to an external issue tracker (e.g. Jira, GitHub)
+            testResultId:
+              type: [string, "null"]
+              format: uuid
+            testRunId:
+              type: [string, "null"]
+              format: uuid
+            testCaseId:
+              type: [string, "null"]
+              format: uuid
+            environmentId:
+              type: [string, "null"]
+              format: uuid
+            cycleId:
+              type: [string, "null"]
+              format: uuid
+            workspaceCycleId:
+              type: [string, "null"]
+              format: uuid
+
+    CreateDefectRequest:
+      type: object
+      description: Request body for creating a defect
+      required: [title, projectId]
+      properties:
+        title:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        severity:
+          $ref: "#/components/schemas/DefectSeverity"
+        priority:
+          $ref: "#/components/schemas/DefectPriority"
+        defectType:
+          $ref: "#/components/schemas/DefectType"
+        assigneeId:
+          type: string
+          format: uuid
+        stepsToReproduce:
+          type: string
+        expectedResult:
+          type: string
+        actualResult:
+          type: string
+        testResultId:
+          type: string
+          format: uuid
+        testRunId:
+          type: string
+          format: uuid
+        testCaseId:
+          type: string
+          format: uuid
+        externalUrl:
+          type: string
+          format: uri
+        environmentId:
+          type: string
+          format: uuid
+        cycleId:
+          type: string
+          format: uuid
+        workspaceCycleId:
+          type: string
+          format: uuid
+
+    UpdateDefectRequest:
+      type: object
+      description: Request body for partially updating a defect. All fields are optional.
+      properties:
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        severity:
+          $ref: "#/components/schemas/DefectSeverity"
+        priority:
+          $ref: "#/components/schemas/DefectPriority"
+        defectType:
+          $ref: "#/components/schemas/DefectType"
+        status:
+          $ref: "#/components/schemas/DefectStatus"
+        resolution:
+          oneOf:
+            - $ref: "#/components/schemas/DefectResolution"
+            - type: "null"
+        assigneeId:
+          type: [string, "null"]
+          format: uuid
+        stepsToReproduce:
+          type: [string, "null"]
+        expectedResult:
+          type: [string, "null"]
+        actualResult:
+          type: [string, "null"]
+        externalUrl:
+          type: [string, "null"]
+          format: uri
+        testResultId:
+          type: [string, "null"]
+          format: uuid
+        testRunId:
+          type: [string, "null"]
+          format: uuid
+        testCaseId:
+          type: [string, "null"]
+          format: uuid
+        environmentId:
+          type: [string, "null"]
+          format: uuid
+        cycleId:
+          type: [string, "null"]
+          format: uuid
+        workspaceCycleId:
+          type: [string, "null"]
+          format: uuid
+
+    Environment:
+      type: object
+      description: A test environment (e.g. staging, production)
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required: [id, name, type, isDefault, displayOrder, projectId]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            url:
+              type: [string, "null"]
+              format: uri
+            description:
+              type: [string, "null"]
+            type:
+              $ref: "#/components/schemas/EnvironmentType"
+            isDefault:
+              type: boolean
+              description: Whether this is the project's default environment
+            displayOrder:
+              type: integer
+            projectId:
+              type: string
+              format: uuid
+
+    CreateEnvironmentRequest:
+      type: object
+      description: Request body for creating an environment
+      required: [name, projectId]
+      properties:
+        name:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        description:
+          type: string
+        type:
+          $ref: "#/components/schemas/EnvironmentType"
+        isDefault:
+          type: boolean
+
+    Cycle:
+      type: object
+      description: A test cycle used to group test runs into time-boxed iterations
+      allOf:
+        - $ref: "#/components/schemas/AuditFields"
+        - type: object
+          required: [id, name, status, isCurrent, displayOrder, projectId]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            description:
+              type: [string, "null"]
+            startDate:
+              type: [string, "null"]
+              format: date
+            endDate:
+              type: [string, "null"]
+              format: date
+            status:
+              $ref: "#/components/schemas/CycleStatus"
+            isCurrent:
+              type: boolean
+              description: Whether this is the currently active cycle
+            displayOrder:
+              type: integer
+            projectId:
+              type: string
+              format: uuid
+
+    CreateCycleRequest:
+      type: object
+      description: Request body for creating a cycle
+      required: [name, projectId]
+      properties:
+        name:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/CycleStatus"
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    UpdateCycleRequest:
+      type: object
+      description: Request body for updating a cycle
+      properties:
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/CycleStatus"
+        startDate:
+          type: [string, "null"]
+          format: date
+        endDate:
+          type: [string, "null"]
+          format: date
+        isCurrent:
+          type: boolean
+
+    SharedStep:
+      type: object
+      description: A reusable shared step definition
+      required: [id, title, projectId, status, displayOrder]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        projectId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/SharedStepStatus"
+        displayOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SharedStepAction:
+      type: object
+      description: An individual action within a shared step
+      required: [id, sharedStepId, stepOrder, action]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sharedStepId:
+          type: string
+          format: uuid
+        stepOrder:
+          type: integer
+          description: 1-based ordering
+        action:
+          type: string
+          description: The action to perform
+        data:
+          type: [string, "null"]
+          description: Test data for this step
+        expectedResult:
+          type: [string, "null"]
+          description: Expected outcome
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SharedStepWithActions:
+      type: object
+      description: A shared step with all its actions included
+      allOf:
+        - $ref: "#/components/schemas/SharedStep"
+        - type: object
+          properties:
+            actions:
+              type: array
+              items:
+                $ref: "#/components/schemas/SharedStepAction"
+
+    CreateSharedStepRequest:
+      type: object
+      description: Request body for creating a shared step
+      required: [title, projectId]
+      properties:
+        title:
+          type: string
+        projectId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/SharedStepStatus"
+
+    UpdateSharedStepRequest:
+      type: object
+      description: Request body for updating a shared step
+      properties:
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/SharedStepStatus"
+
+    CreateSharedStepActionRequest:
+      type: object
+      description: Request body for creating an action within a shared step
+      required: [action]
+      properties:
+        action:
+          type: string
+        expectedResult:
+          type: [string, "null"]
+        data:
+          type: [string, "null"]
+
+    UpdateSharedStepActionRequest:
+      type: object
+      description: Request body for updating a shared step action
+      properties:
+        action:
+          type: string
+        expectedResult:
+          type: [string, "null"]
+        data:
+          type: [string, "null"]
+
+    ReorderSharedStepActionsRequest:
+      type: object
+      description: Request body for reordering actions in a shared step
+      required: [actionIds]
+      properties:
+        actionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Ordered list of action IDs representing the new order
+
+    Attachment:
+      type: object
+      description: A file attachment associated with an entity
+      required: [id, entityType, entityId, fileName, fileUrl, fileSize, mimeType, createdAt, createdBy]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          $ref: "#/components/schemas/AttachmentEntityType"
+        entityId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+          description: Original file name
+        fileUrl:
+          type: string
+          format: uri
+          description: URL where the file can be downloaded
+        fileSize:
+          type: integer
+          description: File size in bytes
+        mimeType:
+          type: string
+          description: MIME type (e.g. image/png)
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          description: User ID who uploaded the file
+
+    TestRunLog:
+      type: object
+      description: A chunk of log output from a test run or result execution
+      required: [id, testRunId, chunkIndex, content, lineOffset, lineCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        testRunId:
+          type: string
+          format: uuid
+        testResultId:
+          type: [string, "null"]
+          format: uuid
+          description: If set, this log belongs to a specific test result within the run
+        stepName:
+          type: [string, "null"]
+          description: Optional step name for grouping log output
+        chunkIndex:
+          type: integer
+          description: Sequential index for ordering chunks
+        content:
+          type: string
+          description: Raw log content
+        lineOffset:
+          type: integer
+          description: Starting line number in the overall log stream
+        lineCount:
+          type: integer
+          description: Number of lines in this chunk
+        createdAt:
+          type: string
+          format: date-time
+
+    AppendLogRequest:
+      type: object
+      description: Request body for appending log content
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: Log content to append
+        step:
+          type: string
+          description: Optional step name for grouping
+        testResultId:
+          type: string
+          format: uuid
+          description: Optional test result ID to associate the log with
+
+    TokenMetadata:
+      type: object
+      description: API token metadata (the secret value is only returned at creation time)
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          description: Display name for the token
+        permissions:
+          type: array
+          items:
+            type: string
+          description: List of permission scopes granted to this token
+        projectScopes:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: If set, the token is restricted to these project IDs
+        expiresAt:
+          type: [string, "null"]
+          format: date-time
+          description: Expiration timestamp, null for non-expiring tokens
+        lastUsedAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTokenRequest:
+      type: object
+      description: Request body for creating an API token
+      required: [name, permissions]
+      properties:
+        name:
+          type: string
+          description: Display name for the token
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Permission scopes to grant (e.g. read, write)
+        projectScopes:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Restrict the token to these project IDs. Omit for all-project access.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Optional expiration timestamp

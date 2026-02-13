@@ -1,0 +1,64 @@
+---
+title: Test Cases
+description: Core entity for defining what to test
+---
+
+A **test case** describes a specific test scenario with steps, expected results, and metadata.
+
+## Properties
+
+| Property | Type | Values |
+|----------|------|--------|
+| **Title** | string | Required |
+| **Description** | string | Optional, supports rich text |
+| **Preconditions** | string | Setup requirements |
+| **Status** | enum | `active`, `draft`, `deprecated`, `review` |
+| **Priority** | enum | `low`, `medium`, `high`, `critical` |
+| **Severity** | enum | `blocker`, `critical`, `major`, `normal`, `minor`, `trivial` |
+| **Type** | enum | `functional`, `smoke`, `regression`, `security`, `usability`, `performance`, `acceptance`, `compatibility`, `integration`, `exploratory`, `other` |
+| **Automation Status** | enum | `manual`, `automated`, `to_be_automated` |
+| **Behavior** | enum | `positive`, `negative`, `destructive` |
+| **Layer** | enum | `e2e`, `api`, `unit` |
+| **Flaky** | boolean | Whether the test is known to be flaky |
+
+## Organization
+
+Test cases are organized in a tree structure:
+
+- **Test Suites** — Top-level grouping
+- **Sections** — Hierarchical folders within suites (can be nested)
+- **Test Cases** — Leaf nodes in the tree
+
+## Test steps
+
+Each test case has ordered steps. Each step has:
+
+| Field | Description |
+|-------|-------------|
+| **Action** | What to do |
+| **Expected Result** | What should happen |
+| **Shared Step ID** | Optional link to a shared step (reusable sequences) |
+
+Steps are ordered by `step_order` and support insertion of [shared steps](/concepts/shared-steps/).
+
+## Key identifiers
+
+Test cases get a human-readable key in the format `{TEAM_KEY}-{number}` (e.g., `ENG-42`). The number auto-increments per team and is immutable.
+
+## Tags
+
+Test cases can be tagged for flexible categorization. Tags are scoped to a project and support many-to-many relationships.
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/test-cases` | Create a test case |
+| PATCH | `/api/test-cases/{id}` | Update a test case |
+| DELETE | `/api/test-cases/{id}` | Soft-delete a test case |
+| GET | `/api/test-cases/by-key` | Get by key (e.g., `ENG-42`) |
+| GET | `/api/test-cases/{id}/steps` | List steps |
+| POST | `/api/test-cases/{id}/steps` | Create a step |
+| POST | `/api/test-cases/{id}/clone` | Clone a test case |
+
+See the [API Reference](/api-reference/) for full request/response details.

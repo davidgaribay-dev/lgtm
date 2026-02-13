@@ -1,0 +1,84 @@
+---
+title: Test Linking
+description: How Playwright tests are matched to LGTM test cases
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+The reporter uses a three-tier strategy to match Playwright tests to LGTM test cases.
+
+## Matching priority
+
+### 1. Tags (highest priority)
+
+Playwright tags matching the pattern `@LETTERS-DIGITS` are matched against LGTM case keys:
+
+```typescript
+test("Login with valid credentials @ENG-42", async ({ page }) => {
+  // Matched to test case ENG-42
+});
+```
+
+### 2. Title matching
+
+If no tag match is found, the test's full title path is compared against existing LGTM test case titles (case-insensitive):
+
+```typescript
+test("Login with valid credentials", async ({ page }) => {
+  // Matched if an LGTM test case with this exact title exists
+});
+```
+
+### 3. Auto-create (lowest priority)
+
+If `autoCreateTestCases` is `true` (the default) and no match is found, the reporter creates a new test case with:
+- **Type:** `functional`
+- **Automation Status:** `automated`
+- **Layer:** `e2e`
+- **Status:** `active`
+
+## The `lgtm()` helper
+
+For explicit control, use the `lgtm()` helper to link a test to a specific case:
+
+```typescript
+import { test } from "@playwright/test";
+import { lgtm } from "@lgtm/playwright-reporter";
+
+// By case key:
+test(lgtm("ENG-42", "Login with valid credentials"), async ({ page }) => {
+  // Explicitly linked to ENG-42
+});
+
+// By numeric ID:
+test(lgtm(42, "Login test"), async ({ page }) => {
+  // Linked to case number 42 in the project
+});
+```
+
+### How it works
+
+The `lgtm()` function:
+1. Returns the test title (second argument) so Playwright uses it normally
+2. Embeds metadata as a Playwright attachment with content type `application/lgtm.metadata+json`
+3. The reporter reads this metadata in `onTestEnd` to override the matching strategy
+
+<Aside type="tip">
+Use `lgtm()` when you want guaranteed matching regardless of title changes. Tag-based matching (`@ENG-42` in the title) is simpler but couples your test titles to LGTM keys.
+</Aside>
+
+## Matching flow diagram
+
+```
+Test completes
+  ↓
+Has lgtm() metadata?
+  → Yes: Use metadata case key/ID
+  → No: Check tags (@ENG-42 pattern)
+    → Found: Match to case key
+    → Not found: Title match (case-insensitive)
+      → Found: Use matched case
+      → Not found: autoCreateTestCases?
+        → true: Create new case
+        → false: Skip (result not submitted)
+```

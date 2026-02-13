@@ -1,0 +1,35 @@
+---
+title: lgtm cycles
+description: List project cycles
+---
+
+## Commands
+
+### `lgtm cycles list`
+
+List cycles for a project.
+
+```bash
+lgtm cycles list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+
+**Output columns:** Name, Status, Start Date, End Date, Current
+
+### Example
+
+```bash
+$ lgtm cycles list -p ENG
+┌───────────┬──────────┬────────────┬────────────┬─────────┐
+│ Name      │ Status   │ Start      │ End        │ Current │
+├───────────┼──────────┼────────────┼────────────┼─────────┤
+│ Sprint 4  │ completed│ 2025-01-01 │ 2025-01-14 │ No      │
+│ Sprint 5  │ active   │ 2025-01-15 │ 2025-01-28 │ Yes     │
+│ Sprint 6  │ planned  │ 2025-01-29 │ 2025-02-11 │ No      │
+└───────────┴──────────┴────────────┴────────────┴─────────┘
+```

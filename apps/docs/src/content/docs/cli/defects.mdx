@@ -1,0 +1,68 @@
+---
+title: lgtm defects
+description: List, get, and create defects
+---
+
+## Commands
+
+### `lgtm defects list`
+
+List defects for a project.
+
+```bash
+lgtm defects list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+| `--status <status>` | Filter: `open`, `in_progress`, `fixed`, `verified`, `closed`, `reopened`, `deferred`, `rejected`, `duplicate` |
+| `--severity <severity>` | Filter: `blocker`, `critical`, `major`, `normal`, `minor`, `trivial` |
+
+### `lgtm defects get <key>`
+
+Get a defect by its human-readable key.
+
+```bash
+lgtm defects get ENG-D-42
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `<key>` | Defect key (e.g., `ENG-D-42`) |
+
+### `lgtm defects create`
+
+Create a new defect.
+
+```bash
+lgtm defects create --project ENG --title "Login page broken" --severity critical
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key (required) |
+| `-t, --title <title>` | Defect title (required) |
+| `--severity <severity>` | Severity level |
+| `--priority <priority>` | Priority level |
+| `--description <text>` | Description |
+
+### Examples
+
+```bash
+# List open blockers
+lgtm defects list -p ENG --status open --severity blocker
+
+# Get defect details
+lgtm defects get ENG-D-42 --json
+
+# Create a critical defect
+lgtm defects create -p ENG -t "Payment processing fails" \
+  --severity critical --priority high
+```

@@ -1,0 +1,97 @@
+---
+title: Quickstart
+description: Get up and running with LGTM in 5 minutes
+---
+
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+
+This guide walks you through creating your first test run using the LGTM CLI.
+
+## Prerequisites
+
+- A running LGTM instance (see [Installation](/getting-started/installation/))
+- Node.js 20+
+
+<Steps>
+
+1. **Install the CLI**
+
+   ```bash
+   npm install -g @lgtm/cli
+   ```
+
+2. **Configure authentication**
+
+   Run the interactive setup:
+
+   ```bash
+   lgtm auth configure
+   ```
+
+   You'll be prompted for:
+   - **API URL** — Your LGTM instance URL (e.g., `https://lgtm.example.com`)
+   - **API Token** — A token created in **Settings > API Tokens** in the web UI
+
+   Configuration is saved to `~/.config/lgtm/config.json`.
+
+3. **Verify the connection**
+
+   ```bash
+   lgtm auth status
+   ```
+
+   You should see your API URL and a successful connection test.
+
+4. **List your projects**
+
+   ```bash
+   lgtm projects list
+   ```
+
+   This shows all teams/projects you have access to. Note the **Key** column (e.g., `ENG`).
+
+5. **List test cases**
+
+   ```bash
+   lgtm test-cases list --project ENG
+   ```
+
+6. **Create a test run**
+
+   ```bash
+   lgtm test-runs create --project ENG --name "My First Run" --cases ENG-1,ENG-2,ENG-3
+   ```
+
+   This creates a test run containing the specified test cases.
+
+7. **Submit a result**
+
+   ```bash
+   lgtm test-results submit --run <run-id> --case <case-id> --status passed
+   ```
+
+</Steps>
+
+## Next steps
+
+- [Set up the Playwright Reporter](/playwright-reporter/) for automated test result uploads
+- [Browse the API Reference](/api-reference/) for programmatic access
+- [Learn about API Tokens](/guides/api-tokens/) for fine-grained permissions
+
+## Using with AI agents
+
+The CLI is designed for AI coding agents (Claude Code, Cursor, Cline, Aider). Use the `--json` flag for machine-readable output:
+
+```bash
+lgtm test-cases list --project ENG --json
+lgtm test-runs get <id> --json
+```
+
+Add a `.lgtm.json` file to your project root to avoid passing `--project` on every command:
+
+```json
+{
+  "apiUrl": "https://lgtm.example.com",
+  "defaultProject": "ENG"
+}
+```

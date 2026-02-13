@@ -1,0 +1,59 @@
+---
+title: Defects
+description: Bug tracking with traceability to test cases
+---
+
+**Defects** track bugs and issues found during testing, with full traceability to test cases, runs, and results.
+
+## Properties
+
+| Property | Type | Values |
+|----------|------|--------|
+| **Title** | string | Required |
+| **Description** | string | Supports rich text |
+| **Status** | enum | `open`, `in_progress`, `fixed`, `verified`, `closed`, `reopened`, `deferred`, `rejected`, `duplicate` |
+| **Severity** | enum | `blocker`, `critical`, `major`, `normal`, `minor`, `trivial` |
+| **Priority** | enum | `critical`, `high`, `medium`, `low` |
+| **Type** | enum | `functional`, `ui`, `performance`, `security`, `crash`, `data`, `other` |
+| **Resolution** | enum | `fixed`, `wont_fix`, `duplicate`, `cannot_reproduce`, `by_design`, `deferred` |
+| **Defect Key** | string | Auto-generated `{TEAM_KEY}-D-{number}` (e.g., `ENG-D-42`) |
+
+## Additional fields
+
+| Field | Description |
+|-------|-------------|
+| **Steps to Reproduce** | How to trigger the bug |
+| **Expected Result** | What should happen |
+| **Actual Result** | What actually happens |
+| **External URL** | Link to external issue tracker |
+| **Assignee** | User responsible for fixing |
+
+## Traceability
+
+Defects can be linked to:
+- **Test Case** — The case that revealed the defect
+- **Test Run** — The run where it was found
+- **Test Result** — The specific result that failed
+- **Environment** — Where the defect was observed
+- **Cycle** — Sprint/release context
+
+## Status workflow
+
+```
+open → in_progress → fixed → verified → closed
+  ↑                    ↓
+  └── reopened ←───────┘
+
+open → deferred / rejected / duplicate
+```
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/defects` | List defects |
+| POST | `/api/defects` | Create a defect |
+| GET | `/api/defects/{id}` | Get defect details |
+| PATCH | `/api/defects/{id}` | Update fields/status |
+| DELETE | `/api/defects/{id}` | Soft-delete |
+| GET | `/api/defects/by-key` | Get by key (e.g., `ENG-D-42`) |

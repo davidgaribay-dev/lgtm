@@ -1,0 +1,59 @@
+---
+title: Attachments
+description: File uploads for test cases, results, defects, and comments
+---
+
+**Attachments** allow uploading files (images, videos, documents) to test cases, results, defects, test runs, and comments.
+
+## Supported file types
+
+| MIME Type | Extension |
+|-----------|-----------|
+| `image/jpeg` | .jpg, .jpeg |
+| `image/png` | .png |
+| `image/webp` | .webp |
+| `image/gif` | .gif |
+| `video/mp4` | .mp4 |
+| `video/webm` | .webm |
+| `application/pdf` | .pdf |
+| `application/zip` | .zip |
+| `text/plain` | .txt |
+
+**Maximum file size:** 10 MB
+
+## Entity types
+
+Attachments are polymorphic — they can be linked to any of these entity types:
+
+| Entity Type | Description |
+|-------------|-------------|
+| `test_case` | Test case attachments |
+| `test_result` | Test result evidence |
+| `defect` | Bug screenshots/recordings |
+| `test_run` | Run-level artifacts |
+| `comment` | Comment attachments |
+
+## Storage backends
+
+LGTM supports pluggable storage:
+
+| Backend | Config | Use case |
+|---------|--------|----------|
+| **Vercel Blob** | `STORAGE_PROVIDER=vercel-blob` | Vercel deployments (default) |
+| **S3-compatible** | `STORAGE_PROVIDER=s3` | Self-hosted (SeaweedFS, MinIO, AWS S3) |
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/attachments` | List by entity type + entity ID |
+| POST | `/api/attachments` | Upload file (multipart/form-data) |
+| DELETE | `/api/attachments/{id}` | Delete attachment |
+
+### Required token permissions
+
+| Operation | Permission |
+|-----------|-----------|
+| List | `attachment:read` |
+| Upload | `attachment:create` |
+| Delete | `attachment:delete` |

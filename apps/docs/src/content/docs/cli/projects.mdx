@@ -1,0 +1,34 @@
+---
+title: lgtm projects
+description: List accessible projects
+---
+
+## Commands
+
+### `lgtm projects list`
+
+List all projects/teams accessible to the authenticated user.
+
+```bash
+lgtm projects list
+```
+
+**Output columns:** Name, Key, Description
+
+```bash
+lgtm projects list --json
+```
+
+Returns an array of project objects with `id`, `name`, `key`, and `description` fields.
+
+### Example
+
+```bash
+$ lgtm projects list
+┌──────────────────┬─────┬──────────────────────────┐
+│ Name             │ Key │ Description              │
+├──────────────────┼─────┼──────────────────────────┤
+│ Engineering      │ ENG │ Main engineering team     │
+│ Quality Assurance│ QA  │ QA team test cases        │
+└──────────────────┴─────┴──────────────────────────┘
+```

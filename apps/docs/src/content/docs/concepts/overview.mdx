@@ -1,0 +1,74 @@
+---
+title: Domain Overview
+description: How LGTM's data model fits together
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+LGTM organizes test management around a hierarchy of entities. Understanding how they relate helps you use the platform effectively.
+
+## Entity hierarchy
+
+```
+Organization (Workspace)
+├── Teams (Projects)
+│   ├── Test Suites
+│   │   ├── Sections (nested folders)
+│   │   └── Test Cases
+│   │       └── Test Steps
+│   ├── Shared Steps (reusable step sequences)
+│   │   └── Shared Step Actions
+│   ├── Test Plans (curated case selections)
+│   ├── Test Runs
+│   │   ├── Test Results (one per case per run)
+│   │   │   └── Test Step Results
+│   │   └── Logs (run-level and result-level)
+│   ├── Defects
+│   ├── Environments
+│   ├── Cycles (team-level sprints)
+│   └── API Tokens (team-scoped)
+├── Workspace Cycles (cross-team releases)
+├── Members (org-level roles)
+└── API Tokens (workspace-scoped)
+```
+
+## Key concepts
+
+### Organizations and teams
+
+An **organization** (workspace) is the top-level container. Within it, you create **teams** (called "projects" in the database). Each team has its own test cases, runs, defects, and settings.
+
+Teams use short **keys** (2-10 uppercase letters like `ENG`, `QA`, `BACKEND`) that form part of human-readable identifiers.
+
+### Human-readable identifiers
+
+Every major entity gets a human-readable key:
+
+| Entity | Pattern | Example |
+|--------|---------|---------|
+| Test Case | `{TEAM_KEY}-{number}` | `ENG-42` |
+| Test Run | `{TEAM_KEY}-TR-{number}` | `ENG-TR-5` |
+| Defect | `{TEAM_KEY}-D-{number}` | `ENG-D-12` |
+
+Numbers auto-increment per team. These keys are used in URLs, the CLI, and the Playwright reporter for matching.
+
+### IDs
+
+All entities use UUID primary keys internally. The human-readable keys are used in URLs and external references. API routes accept UUIDs for entity operations (e.g., `PATCH /api/test-cases/{id}`), while lookup-by-key endpoints exist for human-friendly access (e.g., `GET /api/test-cases/by-key?caseKey=ENG-42`).
+
+### Soft delete
+
+All application entities support soft deletion via `deleted_at` / `deleted_by` columns. Deleted entities are excluded from all queries but remain in the database for audit purposes.
+
+### Audit fields
+
+Every entity tracks creation and modification metadata:
+
+| Field | Description |
+|-------|-------------|
+| `created_at` | Timestamp of creation |
+| `created_by` | User ID of creator |
+| `updated_at` | Timestamp of last update |
+| `updated_by` | User ID of last updater |
+| `deleted_at` | Timestamp of soft deletion |
+| `deleted_by` | User ID of deleter |

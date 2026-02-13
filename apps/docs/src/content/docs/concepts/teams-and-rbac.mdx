@@ -1,0 +1,62 @@
+---
+title: Teams & RBAC
+description: Organizations, teams, and role-based access control
+---
+
+## Organizations
+
+An **organization** (workspace) is the top-level container. Each organization has:
+- A display name and URL slug
+- Members with organization-level roles
+- One or more teams
+- Workspace cycles for cross-team tracking
+- API tokens for programmatic access
+
+## Teams
+
+**Teams** (called "projects" internally) are the primary unit of organization. Each team has:
+- A display name and immutable **key** (2-10 uppercase letters, e.g., `ENG`)
+- Its own test cases, runs, defects, environments, cycles, and shared steps
+- Team-level members with team-specific roles
+- Team-scoped API tokens
+
+### Team keys
+
+Keys follow the pattern `^[A-Z]{2,10}$`. They are:
+- Unique per organization
+- Immutable after creation
+- Used in human-readable identifiers (`ENG-42`, `ENG-TR-5`, `ENG-D-12`)
+- Auto-generated from team name (e.g., "Engineering Team" → `ENG`)
+
+Reserved keys: `TEST`, `TEMP`, `ADMIN`, `ROOT`, `API`, `APP`, `WEB`, `DASHBOARD`, `TEAMS`, `SETTINGS`
+
+## Organization roles
+
+| Role | Capabilities |
+|------|-------------|
+| **Owner** | Full control, including deleting the organization |
+| **Admin** | All actions except organization deletion |
+| **Member** | Create/edit test cases, execute runs |
+| **Viewer** | Read-only access |
+
+## Team roles
+
+| Role | Capabilities |
+|------|-------------|
+| **Team Owner** | Full team control (settings, members, delete) |
+| **Team Admin** | Manage content, environments, members (cannot delete team) |
+| **Team Member** | Create/edit test cases, execute runs |
+| **Team Viewer** | Read-only access to team resources |
+
+## Permission resolution
+
+1. **Org admins/owners** automatically get team admin access to all teams (no explicit membership required)
+2. **Explicit team membership** grants team-specific roles
+3. **No org admin role + No team membership** = No access to the team
+
+## Invitations
+
+- Organization invitations include a role assignment
+- Team invitations include a team role assignment
+- Invitations expire after 7 days
+- Emails sent via Resend (falls back to console.log if not configured)

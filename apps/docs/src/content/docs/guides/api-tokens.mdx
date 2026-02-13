@@ -1,0 +1,77 @@
+---
+title: API Tokens
+description: Creating and managing fine-grained API tokens
+---
+
+import { Steps, Aside } from "@astrojs/starlight/components";
+
+API tokens provide programmatic access to the LGTM API. They use fine-grained permissions similar to GitHub personal access tokens.
+
+## Creating a token
+
+<Steps>
+
+1. Navigate to **Settings > API Tokens** in the LGTM web UI
+2. Click **Create Token**
+3. Enter a descriptive name (e.g., "CI Pipeline", "Claude Code Agent")
+4. Set an optional expiration date
+5. Select permissions — choose which resources and actions the token can access
+6. Optionally scope to specific projects
+7. Click **Create**
+8. **Copy the token immediately** — it will not be shown again
+
+</Steps>
+
+<Aside type="caution">
+Tokens are bcrypt-hashed and cannot be retrieved after creation. If you lose a token, revoke it and create a new one.
+</Aside>
+
+## Permission reference
+
+| Resource | Actions | Description |
+|----------|---------|-------------|
+| `testCase` | `create`, `read`, `update`, `delete` | Test case management |
+| `testRun` | `create`, `read`, `update`, `delete` | Test run operations |
+| `defect` | `create`, `read`, `update`, `delete` | Defect tracking |
+| `environment` | `create`, `read`, `update`, `delete` | Environment config |
+| `cycle` | `create`, `read`, `update`, `delete` | Cycle management |
+| `sharedStep` | `create`, `read`, `update`, `delete` | Shared step operations |
+| `attachment` | `create`, `read`, `delete` | File attachments |
+
+## Recommended token configurations
+
+### For the Playwright Reporter
+
+Permissions needed:
+- `testCase:create`, `testCase:read` (for auto-creating and matching)
+- `testRun:create`, `testRun:read`, `testRun:update` (for creating runs and submitting results)
+- `defect:create` (if `autoCreateDefects` is enabled)
+- `attachment:create` (if `uploadAttachments` is enabled)
+
+### For the CLI (read-only agent)
+
+Permissions needed:
+- `testCase:read`
+- `testRun:read`
+- `defect:read`
+- `environment:read`
+- `cycle:read`
+- `sharedStep:read`
+
+### For the CLI (full access agent)
+
+All resource permissions with all actions.
+
+## Managing tokens
+
+### Revoking a token
+
+Go to **Settings > API Tokens**, find the token, and click **Revoke**. Revoked tokens immediately stop working.
+
+### Token security
+
+- Tokens are prefixed with `lgtm_v1_` for easy identification in logs
+- Store tokens in CI/CD secrets, never in code
+- Use project-scoped tokens when possible (principle of least privilege)
+- Set expiration dates for temporary access
+- Review and revoke unused tokens regularly

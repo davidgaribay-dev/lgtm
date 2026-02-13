@@ -1,0 +1,85 @@
+---
+title: Reporter Configuration
+description: All configuration options for the LGTM Playwright reporter
+---
+
+## Configuration options
+
+Pass these options in your `playwright.config.ts` reporter array:
+
+```typescript
+["@lgtm/playwright-reporter", {
+  apiUrl: "https://lgtm.example.com",
+  apiToken: process.env.LGTM_API_TOKEN,
+  projectKey: "ENG",
+  // ... optional fields below
+}]
+```
+
+| Option | Required | Default | Env Var | Description |
+|--------|----------|---------|---------|-------------|
+| `apiUrl` | Yes | — | `LGTM_API_URL` | LGTM API base URL |
+| `apiToken` | Yes | — | `LGTM_API_TOKEN` | API token (`lgtm_v1_...`) |
+| `projectKey` | Yes | — | `LGTM_PROJECT_KEY` | Team key (e.g., `ENG`) |
+| `environment` | No | — | — | Environment name to match |
+| `cycle` | No | — | — | Cycle name to match |
+| `runName` | No | `"Playwright Run <timestamp>"` | — | Custom test run name |
+| `autoCreateTestCases` | No | `true` | — | Auto-create cases for unmatched tests |
+| `autoCreateDefects` | No | `false` | — | Create defects for test failures |
+| `uploadLogs` | No | `true` | — | Upload stdout/stderr as run logs |
+| `uploadAttachments` | No | `true` | — | Upload screenshots, videos, and traces |
+| `debug` | No | `false` | `LGTM_DEBUG` | Enable verbose debug logging |
+
+## Environment variable fallbacks
+
+The three required options can be set via environment variables instead of config:
+
+```bash
+export LGTM_API_URL=https://lgtm.example.com
+export LGTM_API_TOKEN=lgtm_v1_...
+export LGTM_PROJECT_KEY=ENG
+```
+
+Config values take precedence over environment variables.
+
+## Example configurations
+
+### Minimal
+
+```typescript
+["@lgtm/playwright-reporter", {
+  apiUrl: process.env.LGTM_API_URL,
+  apiToken: process.env.LGTM_API_TOKEN,
+  projectKey: "ENG",
+}]
+```
+
+### Full-featured
+
+```typescript
+["@lgtm/playwright-reporter", {
+  apiUrl: "https://lgtm.example.com",
+  apiToken: process.env.LGTM_API_TOKEN,
+  projectKey: "ENG",
+  environment: "staging",
+  cycle: "Sprint 5",
+  runName: `CI Run ${process.env.GITHUB_RUN_NUMBER}`,
+  autoCreateTestCases: true,
+  autoCreateDefects: true,
+  uploadLogs: true,
+  uploadAttachments: true,
+  debug: false,
+}]
+```
+
+### Lightweight (no logs/attachments)
+
+```typescript
+["@lgtm/playwright-reporter", {
+  apiUrl: process.env.LGTM_API_URL,
+  apiToken: process.env.LGTM_API_TOKEN,
+  projectKey: "ENG",
+  uploadLogs: false,
+  uploadAttachments: false,
+}]
+```

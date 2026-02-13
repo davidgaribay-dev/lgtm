@@ -1,0 +1,121 @@
+---
+title: Self-Hosting
+description: Deploy LGTM with Docker Compose
+---
+
+import { Steps, Aside } from "@astrojs/starlight/components";
+
+LGTM can be self-hosted using Docker Compose with PostgreSQL and SeaweedFS (S3-compatible storage).
+
+## Architecture
+
+```
+┌──────────────────────────┐
+│     LGTM Web App         │ :3000
+│     (Next.js)            │
+├──────────────────────────┤
+│     PostgreSQL 18        │ :5432
+│     (Database)           │
+├──────────────────────────┤
+│     SeaweedFS            │ :8334 (S3 API)
+│     (File Storage)       │ :9334 (Master)
+└──────────────────────────┘
+```
+
+## Setup
+
+<Steps>
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/lgtm-ai/lgtm.git
+   cd lgtm
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   pnpm install
+   ```
+
+3. **Start infrastructure**
+
+   ```bash
+   pnpm docker:up
+   ```
+
+   This starts PostgreSQL 18 and SeaweedFS. A one-shot init container creates the `lgtm` S3 bucket automatically.
+
+4. **Configure environment**
+
+   ```bash
+   cp apps/web/.env.local.example apps/web/.env.local
+   ```
+
+   Required settings:
+
+   ```bash
+   DEPLOYMENT_ENV=dev
+   DATABASE_URL=postgresql://lgtm:lgtm@localhost:5432/lgtm
+   BETTER_AUTH_SECRET=<generate-with-openssl-rand-base64-32>
+   BETTER_AUTH_URL=http://localhost:3000
+   STORAGE_PROVIDER=s3
+   S3_ENDPOINT=http://localhost:8334
+   S3_REGION=us-east-1
+   S3_BUCKET=lgtm
+   S3_ACCESS_KEY_ID=lgtm_dev_access_key
+   S3_SECRET_ACCESS_KEY=lgtm_dev_secret_key
+   S3_PUBLIC_URL_BASE=http://localhost:3000/storage
+   ```
+
+5. **Initialize the database**
+
+   ```bash
+   pnpm db:push
+   ```
+
+6. **Build and start**
+
+   ```bash
+   pnpm build:packages
+   pnpm dev
+   ```
+
+</Steps>
+
+## Docker services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `postgres` | 5432 | PostgreSQL 18 (user/pass/db: `lgtm`) |
+| `seaweedfs` | 8334 | S3 API (mapped from container 8333) |
+| `seaweedfs` | 9334 | Master API (mapped from container 9333) |
+| `seaweedfs-init` | — | One-shot: creates the `lgtm` bucket |
+
+## Docker commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm docker:up` | Start services |
+| `pnpm docker:down` | Stop services (data preserved) |
+| `pnpm docker:reset` | Stop and delete all data (volumes) |
+| `pnpm docker:logs` | Tail service logs |
+
+## Storage proxy
+
+In dev mode, Next.js proxies `/storage/*` requests to SeaweedFS. This means `S3_PUBLIC_URL_BASE` should be `http://localhost:3000/storage` so uploaded files are served through Next.js on the same origin, avoiding CORS and port-forwarding issues.
+
+## SeaweedFS S3 configuration
+
+The S3 config at `docker/seaweedfs/s3.json` defines two identities:
+- **lgtm_admin** — Full access (used by the app)
+- **anonymous** — Read-only (allows browsers to load uploaded images)
+
+<Aside type="caution">
+`pnpm docker:reset` destroys all volumes — database data and uploaded files will be permanently deleted.
+</Aside>
+
+## Registration control
+
+Set `NEXT_PUBLIC_REGISTRATION_OPEN=false` in `.env.local` to disable public signup. Only invited users will be able to create accounts.

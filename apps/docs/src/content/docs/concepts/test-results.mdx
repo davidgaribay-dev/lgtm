@@ -1,0 +1,59 @@
+---
+title: Test Results
+description: Per-case verdicts within a test run
+---
+
+A **test result** records the outcome of a single test case within a test run.
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| **Status** | enum | `untested`, `passed`, `failed`, `blocked`, `skipped` |
+| **Comment** | string | Optional notes about the result |
+| **Duration** | integer | Execution time in milliseconds |
+| **Executed By** | FK | User who recorded the result |
+| **Executed At** | timestamp | When the result was recorded |
+
+## Test step results
+
+Each test result can have per-step results tracking the outcome of individual steps within the test case:
+
+| Field | Description |
+|-------|-------------|
+| **Status** | Same enum as test result status |
+| **Actual Result** | What actually happened (for failed steps) |
+| **Comment** | Optional notes |
+
+## Bulk submission
+
+Results are submitted in bulk via `POST /api/test-runs/{id}/results`. Each entry includes:
+
+```json
+{
+  "results": [
+    {
+      "testCaseId": "uuid-1",
+      "status": "passed",
+      "duration": 1200,
+      "comment": "All steps verified"
+    },
+    {
+      "testCaseId": "uuid-2",
+      "status": "failed",
+      "comment": "Login button not visible"
+    }
+  ]
+}
+```
+
+The API creates or updates results based on the `testCaseId` within the run.
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/test-runs/{id}/results` | Bulk submit/update results |
+| PATCH | `/api/test-results/{id}` | Update single result |
+| GET | `/api/test-results/{id}/steps` | Get step results |
+| PUT | `/api/test-results/{id}/steps` | Bulk upsert step results |

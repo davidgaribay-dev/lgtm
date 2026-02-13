@@ -1,0 +1,52 @@
+---
+title: Shared Steps
+description: Reusable step sequences for test cases
+---
+
+**Shared steps** are reusable sequences of actions that can be inserted into multiple test cases. They reduce duplication when the same steps appear across many tests (e.g., "Login as admin", "Navigate to settings").
+
+## Properties
+
+| Property | Type | Values |
+|----------|------|--------|
+| **Title** | string | Required, unique per project |
+| **Description** | string | Optional |
+| **Status** | enum | `active`, `draft`, `archived` |
+
+## Shared step actions
+
+Each shared step contains ordered **actions**:
+
+| Field | Description |
+|-------|-------------|
+| **Action** | What to do |
+| **Data** | Optional test data |
+| **Expected Result** | What should happen |
+| **Step Order** | Position in the sequence |
+
+## Usage in test cases
+
+When a shared step is inserted into a test case, the test step's `shared_step_id` field links to the shared step. This provides traceability — you can see which test cases use a given shared step.
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/shared-steps` | List shared steps |
+| POST | `/api/shared-steps` | Create shared step |
+| GET | `/api/shared-steps/{id}` | Get with actions |
+| PUT | `/api/shared-steps/{id}` | Update title/description/status |
+| DELETE | `/api/shared-steps/{id}` | Soft-delete |
+| POST | `/api/shared-steps/{id}/actions` | Create action |
+| PUT | `/api/shared-steps/{id}/actions/{actionId}` | Update action |
+| DELETE | `/api/shared-steps/{id}/actions/{actionId}` | Delete action |
+| PUT | `/api/shared-steps/{id}/actions/reorder` | Reorder actions |
+
+### Required token permissions
+
+| Operation | Permission |
+|-----------|-----------|
+| List / Get | `sharedStep:read` |
+| Create | `sharedStep:create` |
+| Update / Manage actions | `sharedStep:update` |
+| Delete | `sharedStep:delete` |

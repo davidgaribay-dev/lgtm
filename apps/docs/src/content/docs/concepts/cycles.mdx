@@ -1,0 +1,54 @@
+---
+title: Cycles
+description: Sprint and release tracking for test execution
+---
+
+**Cycles** represent time-boxed periods (sprints, releases) for organizing test execution.
+
+## Dual-level cycles
+
+LGTM supports cycles at two levels:
+
+| Level | Scope | Use case |
+|-------|-------|----------|
+| **Team cycles** | Per-project | Sprint-level tracking |
+| **Workspace cycles** | Organization-wide | Release-level tracking |
+
+## Properties
+
+| Property | Type | Values |
+|----------|------|--------|
+| **Name** | string | Required, unique per scope |
+| **Status** | enum | `planned`, `active`, `completed` |
+| **Start Date** | date | Optional |
+| **End Date** | date | Optional |
+| **Is Current** | boolean | Whether this is the active cycle |
+
+## Dual foreign keys
+
+Test entities have **two cycle foreign keys** for flexible tracking:
+
+- `cycle_id` — Team-level cycle
+- `workspace_cycle_id` — Organization-level cycle
+
+This applies to test cases, test runs, and test results, allowing entities to be tracked at both sprint and release levels simultaneously.
+
+## API endpoints
+
+**Team cycles:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/cycles` | List team cycles |
+| POST | `/api/cycles` | Create team cycle |
+| PUT | `/api/cycles/{id}` | Update |
+| DELETE | `/api/cycles/{id}` | Soft-delete |
+
+**Workspace cycles** (admin/owner only):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/workspace-cycles` | List workspace cycles |
+| POST | `/api/workspace-cycles` | Create workspace cycle |
+| PUT | `/api/workspace-cycles/{id}` | Update |
+| DELETE | `/api/workspace-cycles/{id}` | Soft-delete |

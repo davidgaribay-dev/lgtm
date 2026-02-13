@@ -1,0 +1,34 @@
+---
+title: lgtm environments
+description: List project environments
+---
+
+## Commands
+
+### `lgtm environments list`
+
+List environments for a project.
+
+```bash
+lgtm environments list --project ENG
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `-p, --project <key>` | Project key |
+
+**Output columns:** Name, Type, URL, Default
+
+### Example
+
+```bash
+$ lgtm environments list -p ENG
+┌───────────┬─────────────┬──────────────────────────┬─────────┐
+│ Name      │ Type        │ URL                      │ Default │
+├───────────┼─────────────┼──────────────────────────┼─────────┤
+│ Staging   │ staging     │ https://staging.app.com  │ No      │
+│ Production│ production  │ https://app.com          │ Yes     │
+└───────────┴─────────────┴──────────────────────────┴─────────┘
+```

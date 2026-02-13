@@ -1,0 +1,36 @@
+---
+title: Comments
+description: Threaded discussions on test cases, results, and defects
+---
+
+**Comments** provide threaded discussions on test cases, test results, and defects.
+
+## Features
+
+- **Threading** — Reply to comments to create conversation threads (via `parent_id`)
+- **Editing** — Edit your own comments after posting
+- **Resolving** — Mark comments as resolved/unresolved
+- **Emoji reactions** — Toggle emoji reactions per user
+- **@Mentions** — Reference team members with `@username` autocomplete
+
+## Entity types
+
+Comments are polymorphic — they can be attached to:
+
+| Entity Type | Description |
+|-------------|-------------|
+| `test_case` | Discussion on test case design |
+| `test_result` | Notes on execution results |
+| `defect` | Bug discussion and triage |
+
+## API endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/comments` | List by entity type + entity ID |
+| POST | `/api/comments` | Create a comment |
+| PATCH | `/api/comments/{id}` | Edit a comment |
+| DELETE | `/api/comments/{id}` | Delete a comment |
+| POST | `/api/comments/{id}/resolve` | Toggle resolved state |
+| POST | `/api/comments/{id}/reactions` | Toggle emoji reaction |
+| GET | `/api/comments/mentions` | Search users for @mentions |
