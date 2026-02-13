@@ -9,7 +9,7 @@ import {
 import { TeamsContent } from "./teams-content";
 
 export const metadata: Metadata = {
-  title: "Teams — LGTM",
+  title: "Teams — looptn",
 };
 
 export default async function TeamsPage({

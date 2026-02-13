@@ -8,7 +8,7 @@ import { organization, member } from "@/db/schema";
 import { InviteForm } from "./invite-form";
 
 export const metadata: Metadata = {
-  title: "Invite Team — LGTM",
+  title: "Invite Team — looptn",
 };
 
 export default async function InvitePage() {

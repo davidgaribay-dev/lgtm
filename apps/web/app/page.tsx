@@ -16,7 +16,7 @@ export default async function Home() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-8 bg-background">
       <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight">LGTM</h1>
+        <h1 className="font-brand text-4xl font-bold tracking-tight">looptn</h1>
         <p className="mt-2 text-lg text-muted-foreground">
           Test case management for modern teams
         </p>

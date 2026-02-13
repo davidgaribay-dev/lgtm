@@ -8,7 +8,7 @@ import { organization, member, project } from "@/db/schema";
 import { TeamForm } from "./team-form";
 
 export const metadata: Metadata = {
-  title: "Create Team — LGTM",
+  title: "Create Team — looptn",
 };
 
 export default async function TeamPage() {

@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/page-container";
 import { SettingsContent } from "./settings-content";
 
 export const metadata: Metadata = {
-  title: "Settings — LGTM",
+  title: "Settings — looptn",
 };
 
 export default async function SettingsPage() {

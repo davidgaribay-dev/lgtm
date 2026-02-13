@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "tsx scripts/reset-db.ts && pnpm db:push"
+    "db:reset": "tsx scripts/reset-db.ts && pnpm db:push",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.988.0",
@@ -54,6 +55,7 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.2.4",
     "drizzle-kit": "^0.31.9",
+    "drizzle-seed": "^0.3.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.4",

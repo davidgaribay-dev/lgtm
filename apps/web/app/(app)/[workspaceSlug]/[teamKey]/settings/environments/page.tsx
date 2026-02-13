@@ -3,7 +3,7 @@ import { getProjectEnvironments } from "@/lib/queries/environments";
 import { EnvironmentsContent } from "./environments-content";
 
 export const metadata: Metadata = {
-  title: "Environments — LGTM",
+  title: "Environments — looptn",
 };
 
 export default async function EnvironmentsSettingsPage({

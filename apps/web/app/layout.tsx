@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Sirivennela } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DemoBanner } from "@/components/demo-banner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const sirivennela = Sirivennela({
+  weight: "400",
+  variable: "--font-sirivennela",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "LGTM — Test Case Management",
+  title: "looptn — Test Case Management",
   description: "Test case management system for modern teams",
 };
 
@@ -27,8 +34,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${sirivennela.variable} antialiased`}
       >
+        <DemoBanner />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

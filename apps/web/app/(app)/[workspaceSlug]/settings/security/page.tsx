@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/page-container";
 import { SecurityContent } from "./security-content";
 
 export const metadata: Metadata = {
-  title: "Security — LGTM",
+  title: "Security — looptn",
 };
 
 export default async function SecurityPage() {

@@ -8,7 +8,7 @@ import { organization, project, member } from "@/db/schema";
 import { TokensList } from "@/components/settings/tokens-list";
 
 export const metadata: Metadata = {
-  title: "API Tokens — LGTM",
+  title: "API Tokens — looptn",
 };
 
 export default async function TokensPage({

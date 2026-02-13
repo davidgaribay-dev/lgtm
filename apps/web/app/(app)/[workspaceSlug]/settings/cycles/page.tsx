@@ -8,7 +8,7 @@ import { organization, member } from "@/db/schema";
 import { WorkspaceCyclesContent } from "./workspace-cycles-content";
 
 export const metadata: Metadata = {
-  title: "Workspace Cycles — LGTM",
+  title: "Workspace Cycles — looptn",
 };
 
 export default async function WorkspaceCyclesPage({

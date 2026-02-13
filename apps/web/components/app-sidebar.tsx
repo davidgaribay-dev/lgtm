@@ -205,11 +205,12 @@ export function AppSidebar({ user }: AppSidebarProps) {
     <>
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-card",
+          "fixed bottom-0 left-0 z-40 flex flex-col border-r bg-card",
           !ready && "invisible",
           enableTransition && "transition-[width] duration-200",
           isExpanded ? "w-64" : "w-16",
         )}
+        style={{ top: "var(--demo-banner-h, 0px)" }}
       >
         {isSettings ? (
           <SettingsHeader basePath={basePath} backLabel="Back to app" />

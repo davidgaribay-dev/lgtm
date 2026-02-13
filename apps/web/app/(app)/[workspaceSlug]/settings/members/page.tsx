@@ -8,7 +8,7 @@ import { organization, member, invitation, user } from "@/db/schema";
 import { MembersList } from "@/components/settings/members-list";
 
 export const metadata: Metadata = {
-  title: "Members — LGTM",
+  title: "Members — looptn",
 };
 
 export default async function MembersPage({

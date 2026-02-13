@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = {
-  title: "Create Account — LGTM",
+  title: "Create Account — looptn",
 };
 
 export default function SignupPage() {

@@ -8,7 +8,7 @@ import { invitation, organization } from "@/db/schema";
 import { InviteAcceptContent } from "./invite-accept-content";
 
 export const metadata: Metadata = {
-  title: "Accept Invitation — LGTM",
+  title: "Accept Invitation — looptn",
 };
 
 export default async function InviteAcceptPage({

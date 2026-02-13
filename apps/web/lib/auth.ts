@@ -134,14 +134,14 @@ export const auth = betterAuth({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: process.env.EMAIL_FROM || "LGTM <noreply@example.com>",
+            from: process.env.EMAIL_FROM || "looptn <noreply@example.com>",
             to: data.email,
-            subject: `You've been invited to join ${data.organization.name} on LGTM`,
+            subject: `You've been invited to join ${data.organization.name} on looptn`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
                 <h2 style="margin: 0 0 8px;">Join ${data.organization.name}</h2>
                 <p style="color: #666; margin: 0 0 24px;">
-                  You've been invited to join <strong>${data.organization.name}</strong> as a <strong>${data.role}</strong> on LGTM.
+                  You've been invited to join <strong>${data.organization.name}</strong> as a <strong>${data.role}</strong> on looptn.
                 </p>
                 <a href="${inviteUrl}" style="display: inline-block; background: #171717; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 500;">
                   Accept Invitation

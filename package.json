@@ -16,6 +16,7 @@
     "db:push": "pnpm --filter @lgtm/web db:push",
     "db:studio": "pnpm --filter @lgtm/web db:studio",
     "db:reset": "pnpm --filter @lgtm/web db:reset",
+    "db:seed": "pnpm --filter @lgtm/web db:seed",
     "test:reporter": "pnpm --filter @lgtm/playwright-reporter test",
     "docs:dev": "pnpm --filter @lgtm/docs dev",
     "docs:build": "pnpm --filter @lgtm/docs build",

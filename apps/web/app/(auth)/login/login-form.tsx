@@ -8,13 +8,15 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { AuthInput, AuthLabel, PasswordInput } from "@/components/auth-ui";
 
+const isDemo = process.env.NEXT_PUBLIC_IS_DEMO === "true";
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/workspace-redirect";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(isDemo ? "demo@lgtm.dev" : "");
+  const [password, setPassword] = useState(isDemo ? "demodemo1234" : "");
   const [error, setError] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -55,6 +57,7 @@ export function LoginForm() {
             setError("");
           }}
           disabled={isPending}
+          readOnly={isDemo}
           required
           autoComplete="email"
           autoFocus
@@ -80,6 +83,7 @@ export function LoginForm() {
             setError("");
           }}
           disabled={isPending}
+          readOnly={isDemo}
           required
           autoComplete="current-password"
         />

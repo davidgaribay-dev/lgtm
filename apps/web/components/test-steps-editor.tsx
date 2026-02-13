@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,11 @@ export function TestStepsEditor({
 }: TestStepsEditorProps) {
   const [localSteps, setLocalSteps] = useState(steps);
   const savingRef = useRef<Set<string>>(new Set());
+
+  // Sync local state when parent steps change (e.g. after inserting shared steps)
+  useEffect(() => {
+    setLocalSteps(steps);
+  }, [steps]);
 
   const handleAddStep = useCallback(() => {
     const newStep: TestStep = {
@@ -167,7 +172,7 @@ export function TestStepsEditor({
                 className="h-8 gap-1.5"
               >
                 <Workflow className="h-3.5 w-3.5" />
-                Add Shared Step
+                Add Shared Steps
               </Button>
             )}
             <Button

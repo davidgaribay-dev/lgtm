@@ -3,7 +3,7 @@ import { PageContainer } from "@/components/page-container";
 import { DashboardContent } from "./dashboard-content";
 
 export const metadata: Metadata = {
-  title: "Dashboard — LGTM",
+  title: "Dashboard — looptn",
 };
 
 export default function DashboardPage() {

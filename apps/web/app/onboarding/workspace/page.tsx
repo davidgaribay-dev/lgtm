@@ -8,7 +8,7 @@ import { member } from "@/db/schema";
 import { WorkspaceForm } from "./workspace-form";
 
 export const metadata: Metadata = {
-  title: "Create Workspace — LGTM",
+  title: "Create Workspace — looptn",
 };
 
 export default async function WorkspacePage() {

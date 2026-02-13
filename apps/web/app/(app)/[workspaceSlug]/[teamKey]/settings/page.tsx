@@ -3,7 +3,7 @@ import { PageContainer } from "@/components/page-container";
 import { TeamInfoForm } from "@/components/team-settings/team-info-form";
 
 export const metadata: Metadata = {
-  title: "Team Settings — LGTM",
+  title: "Team Settings — looptn",
 };
 
 export default async function TeamSettingsPage() {
