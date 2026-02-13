@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter @lgtm/web dev",
-    "build": "pnpm --filter @lgtm/web build",
+    "build": "pnpm build:packages && pnpm --filter @lgtm/web build",
     "build:shared": "pnpm --filter @lgtm/shared build",
     "build:reporter": "pnpm --filter @lgtm/playwright-reporter build",
     "build:cli": "pnpm --filter @lgtm/cli build",
